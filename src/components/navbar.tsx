@@ -23,7 +23,7 @@ function Logo() {
       <img
         src={logoEeds}
         alt="Incub'Youth"
-        className="h-12 w-12 object-contain"
+        className="h-10 w-auto object-contain"
       />
     </Link>
   );
