@@ -14,6 +14,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as EspaceRouteImport } from './routes/espace'
+import { Route as ConditionsUtilisationRouteImport } from './routes/conditions-utilisation'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -44,6 +45,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const EspaceRoute = EspaceRouteImport.update({
   id: '/espace',
   path: '/espace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConditionsUtilisationRoute = ConditionsUtilisationRouteImport.update({
+  id: '/conditions-utilisation',
+  path: '/conditions-utilisation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatRoute = ChatRouteImport.update({
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/chat': typeof ChatRoute
+  '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
+  '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/chat': typeof ChatRoute
+  '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/chat'
+    | '/conditions-utilisation'
     | '/espace'
     | '/forgot-password'
     | '/login'
@@ -134,6 +144,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/chat'
+    | '/conditions-utilisation'
     | '/espace'
     | '/forgot-password'
     | '/login'
@@ -147,6 +158,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/chat'
+    | '/conditions-utilisation'
     | '/espace'
     | '/forgot-password'
     | '/login'
@@ -161,6 +173,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   ChatRoute: typeof ChatRoute
+  ConditionsUtilisationRoute: typeof ConditionsUtilisationRoute
   EspaceRoute: typeof EspaceRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
@@ -203,6 +216,13 @@ declare module '@tanstack/react-router' {
       path: '/espace'
       fullPath: '/espace'
       preLoaderRoute: typeof EspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conditions-utilisation': {
+      id: '/conditions-utilisation'
+      path: '/conditions-utilisation'
+      fullPath: '/conditions-utilisation'
+      preLoaderRoute: typeof ConditionsUtilisationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat': {
@@ -268,6 +288,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   ChatRoute: ChatRoute,
+  ConditionsUtilisationRoute: ConditionsUtilisationRoute,
   EspaceRoute: EspaceRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
@@ -277,3 +298,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
