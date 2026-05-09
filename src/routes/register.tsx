@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { PublicOnlyRoute } from "@/components/route-guards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +30,11 @@ export const Route = createFileRoute("/register")({
       { name: "description", content: "Rejoins la communauté Incub'Youth des EEDS." },
     ],
   }),
-  component: RegisterPage,
+  component: () => (
+    <PublicOnlyRoute>
+      <RegisterPage />
+    </PublicOnlyRoute>
+  ),
 });
 
 function passwordStrength(p: string): { score: number; label: string; color: string } {
@@ -57,6 +62,7 @@ function RegisterPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const pwdValid = password.length >= 8;
@@ -70,22 +76,50 @@ function RegisterPage() {
     if (!canSubmit) return;
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/chat`,
-        data: { prenom, nom, groupe_scout: groupe, region },
-      },
-    });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/chat`,
+          data: { prenom, nom, groupe_scout: groupe || null, region: region || null },
+        },
+      });
+      if (error) {
+        const m = error.message.toLowerCase();
+        if (m.includes("already registered") || m.includes("already been registered")) {
+          setError("Un compte existe déjà avec cet email. Connecte-toi.");
+        } else if (m.includes("password")) {
+          setError("Le mot de passe doit contenir au moins 8 caractères.");
+        } else {
+          setError("Erreur lors de la création du compte. Réessaie.");
+        }
+        return;
+      }
+      setSuccess(true);
+      toast.success("Compte créé ! Vérifie ta boîte mail.");
+      setTimeout(() => navigate({ to: "/login" }), 3000);
+    } finally {
+      setLoading(false);
     }
-    toast.success("Compte créé ! Vérifie ta boîte mail pour confirmer ton compte.");
-    navigate({ to: "/chat" });
   };
+
+  if (success) {
+    return (
+      <AuthLayout title="Bienvenue dans la communauté">
+        <div className="space-y-6 text-center">
+          <CheckCircle2 className="mx-auto h-14 w-14 text-green-500" />
+          <h1 className="text-2xl font-bold text-foreground">Compte créé !</h1>
+          <p className="text-sm text-muted-foreground">
+            Vérifie ta boîte mail pour confirmer ton compte. Tu vas être redirigé vers la connexion…
+          </p>
+          <Link to="/login" className="inline-block font-medium text-[#622599] hover:underline">
+            Aller à la connexion →
+          </Link>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout title="Rejoins Incub'Youth">
