@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import logoEeds from "@/assets/logo-mark.png";
+import logoEeds from "@/assets/logo-full.png";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,7 @@ function Logo() {
       <img
         src={logoEeds}
         alt="Incub'Youth"
-        className="h-12 w-12 object-contain"
+        className="h-10 w-auto object-contain"
       />
     </Link>
   );
