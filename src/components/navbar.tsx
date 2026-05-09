@@ -14,6 +14,7 @@ import {
 const navLinks = [
   { to: "/", label: "Accueil" },
   { to: "/chat", label: "Discussion" },
+  { to: "/camp", label: "Planificateur de camp" },
   { to: "/espace", label: "Mon Espace" },
 ] as const;
 
