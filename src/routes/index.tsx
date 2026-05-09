@@ -36,32 +36,49 @@ const dotPattern = {
   backgroundSize: "26px 26px",
 };
 
-const themes = [
+const themes: ReadonlyArray<{
+  Icon: typeof Tent;
+  title: string;
+  desc: string;
+  slug: string;
+  to: "/chat" | "/camp";
+}> = [
   {
     Icon: Tent,
     title: "Scoutisme & Mouvement",
     desc: "Histoire, valeurs, techniques scouts, EEDS",
     slug: "scoutisme",
+    to: "/chat",
   },
   {
     Icon: Scale,
     title: "Droits de l'enfant",
     desc: "Convention des droits, protection, citoyenneté",
     slug: "droits",
+    to: "/chat",
   },
   {
     Icon: Leaf,
     title: "Environnement",
     desc: "Écologie, développement durable, nature",
     slug: "environnement",
+    to: "/chat",
   },
   {
     Icon: Heart,
     title: "Santé & Bien-être",
     desc: "Hygiène, nutrition, premiers secours",
     slug: "sante",
+    to: "/chat",
   },
-] as const;
+  {
+    Icon: Tent,
+    title: "Planifier un camp",
+    desc: "Génère automatiquement programme, matériel, recettes et checklist sécurité",
+    slug: "camp",
+    to: "/camp",
+  },
+];
 
 const steps = [
   { n: "01", Icon: UserPlus, title: "Crée ton compte", text: "Inscription gratuite en 30 secondes avec ton email" },
@@ -152,11 +169,11 @@ function Index() {
             Sur quoi veux-tu apprendre ?
           </h2>
           <div className="mt-12 grid gap-5 md:grid-cols-2">
-            {themes.map(({ Icon, title, desc, slug }) => (
+            {themes.map(({ Icon, title, desc, slug, to }) => (
               <Link
                 key={slug}
-                to="/chat"
-                search={{ theme: slug } as never}
+                to={to}
+                search={to === "/chat" ? ({ theme: slug } as never) : undefined}
                 className="group flex items-start gap-5 rounded-2xl border border-border bg-card p-6 transition-all duration-200 hover:border-primary hover:bg-primary-soft/40 sm:p-7"
               >
                 <div className="flex h-14 w-14 flex-none items-center justify-center rounded-xl bg-primary-soft text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">

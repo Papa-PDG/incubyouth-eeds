@@ -41,6 +41,17 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastUserMsgRef = useRef<string>("");
 
+  // Read pre-filled prompt from camp page (or other entry points)
+  useEffect(() => {
+    try {
+      const pre = sessionStorage.getItem("chat-prefill");
+      if (pre) {
+        setInput(pre);
+        sessionStorage.removeItem("chat-prefill");
+      }
+    } catch {}
+  }, []);
+
   // Load conversation
   useEffect(() => {
     setMessages([]);

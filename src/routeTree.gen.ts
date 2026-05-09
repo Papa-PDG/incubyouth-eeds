@@ -16,6 +16,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as EspaceRouteImport } from './routes/espace'
 import { Route as ConditionsUtilisationRouteImport } from './routes/conditions-utilisation'
 import { Route as ChatRouteImport } from './routes/chat'
+import { Route as CampRouteImport } from './routes/camp'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -58,6 +59,11 @@ const ChatRoute = ChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampRoute = CampRouteImport.update({
+  id: '/camp',
+  path: '/camp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -92,6 +98,7 @@ const AdminConfigRoute = AdminConfigRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/camp': typeof CampRoute
   '/chat': typeof ChatRouteWithChildren
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/camp': typeof CampRoute
   '/chat': typeof ChatRouteWithChildren
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/camp': typeof CampRoute
   '/chat': typeof ChatRouteWithChildren
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/camp'
     | '/chat'
     | '/conditions-utilisation'
     | '/espace'
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/camp'
     | '/chat'
     | '/conditions-utilisation'
     | '/espace'
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/camp'
     | '/chat'
     | '/conditions-utilisation'
     | '/espace'
@@ -184,6 +196,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  CampRoute: typeof CampRoute
   ChatRoute: typeof ChatRouteWithChildren
   ConditionsUtilisationRoute: typeof ConditionsUtilisationRoute
   EspaceRoute: typeof EspaceRoute
@@ -242,6 +255,13 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/camp': {
+      id: '/camp'
+      path: '/camp'
+      fullPath: '/camp'
+      preLoaderRoute: typeof CampRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -316,6 +336,7 @@ const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  CampRoute: CampRoute,
   ChatRoute: ChatRouteWithChildren,
   ConditionsUtilisationRoute: ConditionsUtilisationRoute,
   EspaceRoute: EspaceRoute,

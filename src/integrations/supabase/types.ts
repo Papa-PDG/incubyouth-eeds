@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      camps: {
+        Row: {
+          age: string
+          created_at: string
+          duree: number
+          effectif: string
+          id: string
+          nom_camp: string
+          plan_json: Json
+          region: string
+          theme: string
+          user_id: string
+        }
+        Insert: {
+          age: string
+          created_at?: string
+          duree: number
+          effectif: string
+          id?: string
+          nom_camp: string
+          plan_json: Json
+          region: string
+          theme: string
+          user_id: string
+        }
+        Update: {
+          age?: string
+          created_at?: string
+          duree?: number
+          effectif?: string
+          id?: string
+          nom_camp?: string
+          plan_json?: Json
+          region?: string
+          theme?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       config_bot: {
         Row: {
           id: string
