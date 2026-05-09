@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import ReactMarkdown from "react-markdown";
-import { Send, ThumbsUp, ThumbsDown, Copy, Share2, Menu } from "lucide-react";
+import { Send, ThumbsUp, ThumbsDown, Copy, Share2, Menu, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +39,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastUserMsgRef = useRef<string>("");
 
   // Load conversation
   useEffect(() => {
@@ -88,6 +89,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     if (!text.trim() || streaming || !user) return;
     setInput("");
     setStreaming(true);
+    lastUserMsgRef.current = text;
 
     let convId = conversationId;
     // Create conversation if first message
@@ -133,6 +135,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
         });
       },
       onError: (msg) => {
+        toast.error(msg);
         setMessages((m) => {
           const copy = [...m];
           copy[copy.length - 1] = { role: "assistant", content: `__ERROR__${msg}` };
@@ -166,6 +169,18 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
         setStreaming(false);
       },
     });
+  };
+
+  const retry = () => {
+    if (streaming || !lastUserMsgRef.current) return;
+    // Retire la dernière paire user+erreur pour éviter le doublon
+    setMessages((m) => {
+      const copy = [...m];
+      if (copy.length && copy[copy.length - 1].role === "assistant") copy.pop();
+      if (copy.length && copy[copy.length - 1].role === "user") copy.pop();
+      return copy;
+    });
+    send(lastUserMsgRef.current);
   };
 
   const setFeedback = async (idx: number, value: "positive" | "negative") => {
@@ -230,6 +245,13 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
                   streaming={streaming && i === messages.length - 1 && m.role === "assistant"}
                   onFeedback={(v) => setFeedback(i, v)}
                   onCopy={() => copyText(m.content)}
+                  onRetry={
+                    i === messages.length - 1 &&
+                    m.role === "assistant" &&
+                    m.content.startsWith("__ERROR__")
+                      ? retry
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -298,11 +320,13 @@ function MessageBubble({
   streaming,
   onFeedback,
   onCopy,
+  onRetry,
 }: {
   msg: Msg;
   streaming: boolean;
   onFeedback: (v: "positive" | "negative") => void;
   onCopy: () => void;
+  onRetry?: () => void;
 }) {
   const isUser = msg.role === "user";
   const isError = msg.content.startsWith("__ERROR__");
@@ -327,7 +351,15 @@ function MessageBubble({
       <div className="flex max-w-[80%] flex-col">
         {isError ? (
           <div className="rounded-[18px_18px_18px_4px] border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-            {msg.content.replace("__ERROR__", "")}
+            <p>{msg.content.replace("__ERROR__", "")}</p>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-destructive/40 bg-white px-2.5 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive hover:text-white"
+              >
+                <RefreshCw className="h-3 w-3" /> Réessayer
+              </button>
+            )}
           </div>
         ) : (
           <div className="rounded-[18px_18px_18px_4px] border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-2.5 text-sm text-[#1F2937]">
