@@ -44,12 +44,19 @@ Règles importantes :
       geminiMessages.push({ role: 'user', parts: [{ text: 'Bonjour' }] })
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    // Timeout 25s
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 25000)
+
+    let response: Response
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents: geminiMessages,
           generationConfig: { maxOutputTokens: 1024, temperature: 0.7, topP: 0.9 },
@@ -59,15 +66,42 @@ Règles importantes :
             { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
             { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
           ]
-        })
+          })
+        }
+      )
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') {
+        return new Response(
+          JSON.stringify({ error: "La requête a pris trop de temps. Réessaie.", code: 'TIMEOUT' }),
+          { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
       }
-    )
+      throw e
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
     const data = await response.json()
 
     if (!response.ok) {
       console.error('Erreur Gemini API:', data)
-      throw new Error(data.error?.message || `Erreur HTTP ${response.status}`)
+      const raw = data.error?.message || `Erreur HTTP ${response.status}`
+      let code = 'API_ERROR'
+      let message = raw
+      if (response.status === 429 || /quota|rate/i.test(raw)) {
+        code = 'QUOTA'
+        message = "Limite d'utilisation atteinte. Réessaie dans quelques instants."
+      } else if (response.status === 401 || response.status === 403) {
+        code = 'AUTH'
+        message = "Problème d'authentification avec le service IA."
+      } else if (response.status >= 500) {
+        code = 'UPSTREAM'
+        message = "Le service IA est momentanément indisponible."
+      }
+      return new Response(
+        JSON.stringify({ error: message, code, detail: raw }),
+        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text
