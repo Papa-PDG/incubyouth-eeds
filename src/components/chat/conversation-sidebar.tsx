@@ -23,7 +23,7 @@ export function ConversationSidebar({
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [convs, setConvs] = useState<Conv[]>([]);
-  const [profile, setProfile] = useState<{ prenom?: string; nom?: string } | null>(null);
+  const [profile, setProfile] = useState<{ prenom: string | null; nom: string | null } | null>(null);
 
   const load = async () => {
     if (!user) return;
