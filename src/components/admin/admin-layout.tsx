@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, Users, MessageSquare, Bot, FileText, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import logoEeds from "@/assets/logo-mark.png";
+import logoEeds from "@/assets/logo-full.png";
 
 type NavItem = {
   to: string;
