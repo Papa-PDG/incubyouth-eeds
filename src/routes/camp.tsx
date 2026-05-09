@@ -125,13 +125,21 @@ function CampPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    nomCamp: string;
+    duree: string;
+    theme: string;
+    effectif: string;
+    age: string;
+    region: string;
+    besoinsSpeciaux: string;
+  }>({
     nomCamp: "",
     duree: "5",
-    theme: THEMES[0],
+    theme: THEMES[0] as string,
     effectif: "20-40",
-    age: AGES[1],
-    region: REGIONS[0],
+    age: AGES[1] as string,
+    region: REGIONS[0] as string,
     besoinsSpeciaux: "",
   });
   const [error, setError] = useState<string | null>(null);
@@ -163,7 +171,7 @@ function CampPage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(20);
-      setSavedCamps((data ?? []) as SavedCamp[]);
+      setSavedCamps(((data ?? []) as unknown) as SavedCamp[]);
     })();
   }, [user?.id]);
 
@@ -233,7 +241,7 @@ function CampPage() {
       return;
     }
     toast.success("Camp sauvegardé");
-    setSavedCamps((s) => [data as SavedCamp, ...s]);
+    setSavedCamps((s) => [(data as unknown) as SavedCamp, ...s]);
   };
 
   const reload = (c: SavedCamp) => {
