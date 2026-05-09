@@ -7,7 +7,7 @@ import { MessageSquare, Plus, Trash2, Settings, LogOut } from "lucide-react";
 import { formatDistanceToNow, isToday, isYesterday, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
-import logo from "@/assets/logo-incubyouth.png";
+import logo from "@/assets/logo-mark.png";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Conv = { id: string; titre: string; updated_at: string };

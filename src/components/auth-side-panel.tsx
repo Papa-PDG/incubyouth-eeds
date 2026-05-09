@@ -1,4 +1,4 @@
-import logo from "@/assets/logo-incubyouth.png";
+import logo from "@/assets/logo-mark.png";
 
 export function AuthSidePanel({ title }: { title: string }) {
   return (
