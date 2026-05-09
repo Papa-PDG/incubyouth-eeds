@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth-side-panel";
-import { GoogleButton } from "@/components/google-button";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -141,8 +140,14 @@ function LoginPage() {
             disabled={loading || !emailValid || !passwordValid}
             className="w-full bg-[#622599] hover:bg-[#4f1d7a]"
           >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Se connecter
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Connexion en cours...
+              </>
+            ) : (
+              "Se connecter"
+            )}
           </Button>
         </form>
 
@@ -155,7 +160,9 @@ function LoginPage() {
           </div>
         </div>
 
-        <GoogleButton label="Continuer avec Google" />
+        <p className="text-center text-xs text-muted-foreground">
+          Connexion Google bientôt disponible
+        </p>
 
         <p className="text-center text-sm text-muted-foreground">
           Pas encore de compte ?{" "}
