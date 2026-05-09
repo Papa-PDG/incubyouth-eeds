@@ -66,7 +66,7 @@ Réponds UNIQUEMENT avec un JSON valide (pas de markdown, pas de texte avant ou 
   "conseils": ["Conseil pour ${region}", "Conseil pour ${theme}"]
 }
 
-Adapte au contexte sénégalais : recettes traditionnelles (thiéboudienne, mafé, yassa, ceebu jën...), ressources locales, climat de ${region}, thème ${theme}. Au moins 6 items par liste, programme complet sur ${duree} jours, types d'activités parmi : installation, atelier, sport, repas, cérémonie, veillée.`;
+Adapte au contexte sénégalais : recettes traditionnelles (thiéboudienne, mafé, yassa, ceebu jën...), ressources locales, climat de ${region}, thème ${theme}. 4 à 6 items par liste, programme complet sur ${duree} jours, types d'activités parmi : installation, atelier, sport, repas, cérémonie, veillée. Sois concis, pas de phrases longues.`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000);
@@ -82,7 +82,7 @@ Adapte au contexte sénégalais : recettes traditionnelles (thiéboudienne, maf�
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: {
-              maxOutputTokens: 8192,
+              maxOutputTokens: 32768,
               temperature: 0.7,
               responseMimeType: "application/json",
             },
@@ -118,18 +118,27 @@ Adapte au contexte sénégalais : recettes traditionnelles (thiéboudienne, maf�
       );
     }
 
+    const finishReason = data.candidates?.[0]?.finishReason;
     let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    text = text.replace(/```json/gi, "").replace(/```/g, "").trim();
 
     let plan;
     try {
       plan = JSON.parse(text);
-    } catch (e) {
-      console.error("Parse error:", e, text.slice(0, 500));
-      return new Response(
-        JSON.stringify({ error: "Réponse IA invalide. Réessaie." }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    } catch (_e) {
+      // Try to repair truncated JSON by closing open structures
+      try {
+        plan = JSON.parse(repairJson(text));
+      } catch (e2) {
+        console.error("Parse error:", e2, "finishReason:", finishReason, text.slice(-500));
+        const msg = finishReason === "MAX_TOKENS"
+          ? "Réponse trop longue. Réessaie avec moins de jours ou un effectif réduit."
+          : "Réponse IA invalide. Réessaie.";
+        return new Response(
+          JSON.stringify({ error: msg }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
     return new Response(JSON.stringify({ plan }), {
@@ -143,3 +152,50 @@ Adapte au contexte sénégalais : recettes traditionnelles (thiéboudienne, maf�
     );
   }
 });
+
+function repairJson(input: string): string {
+  let s = input.trim();
+  // Drop trailing partial token after last complete value
+  // Close any open string
+  let inStr = false;
+  let escape = false;
+  const stack: string[] = [];
+  let lastSafe = -1;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (escape) { escape = false; continue; }
+    if (c === "\\") { escape = true; continue; }
+    if (inStr) {
+      if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === "{" ) stack.push("}");
+    else if (c === "[") stack.push("]");
+    else if (c === "}" || c === "]") stack.pop();
+    if (!inStr && (c === "," || c === "}" || c === "]")) lastSafe = i;
+  }
+  if (inStr) {
+    // cut to last safe boundary
+    if (lastSafe > 0) s = s.slice(0, lastSafe + 1);
+    inStr = false;
+  }
+  // remove trailing commas
+  s = s.replace(/,\s*$/g, "");
+  // recompute stack after potential cut
+  const stack2: string[] = [];
+  let inStr2 = false, esc2 = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (esc2) { esc2 = false; continue; }
+    if (c === "\\") { esc2 = true; continue; }
+    if (inStr2) { if (c === '"') inStr2 = false; continue; }
+    if (c === '"') { inStr2 = true; continue; }
+    if (c === "{") stack2.push("}");
+    else if (c === "[") stack2.push("]");
+    else if (c === "}" || c === "]") stack2.pop();
+  }
+  while (stack2.length) s += stack2.pop();
+  s = s.replace(/,(\s*[}\]])/g, "$1");
+  return s;
+}
