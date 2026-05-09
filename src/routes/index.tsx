@@ -9,6 +9,7 @@ import {
   MessageCircle,
   Bot,
   Star,
+  BookOpen,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -41,7 +42,7 @@ const themes: ReadonlyArray<{
   title: string;
   desc: string;
   slug: string;
-  to: "/chat" | "/camp";
+  to: "/chat" | "/camp" | "/bibliotheque";
 }> = [
   {
     Icon: Tent,
@@ -77,6 +78,13 @@ const themes: ReadonlyArray<{
     desc: "Génère automatiquement programme, matériel, recettes et checklist sécurité",
     slug: "camp",
     to: "/camp",
+  },
+  {
+    Icon: BookOpen,
+    title: "Bibliothèque EEDS",
+    desc: "Règlements, programmes, chants et techniques en PDF",
+    slug: "bibliotheque",
+    to: "/bibliotheque",
   },
 ];
 

@@ -17,12 +17,14 @@ import { Route as EspaceRouteImport } from './routes/espace'
 import { Route as ConditionsUtilisationRouteImport } from './routes/conditions-utilisation'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as CampRouteImport } from './routes/camp'
+import { Route as BibliothequeRouteImport } from './routes/bibliotheque'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ChatConversationIdRouteImport } from './routes/chat.$conversationId'
 import { Route as AdminUtilisateursRouteImport } from './routes/admin.utilisateurs'
 import { Route as AdminConfigRouteImport } from './routes/admin.config'
+import { Route as AdminBibliothequeRouteImport } from './routes/admin.bibliotheque'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -64,6 +66,11 @@ const CampRoute = CampRouteImport.update({
   path: '/camp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BibliothequeRoute = BibliothequeRouteImport.update({
+  id: '/bibliotheque',
+  path: '/bibliotheque',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -94,10 +101,16 @@ const AdminConfigRoute = AdminConfigRouteImport.update({
   path: '/config',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminBibliothequeRoute = AdminBibliothequeRouteImport.update({
+  id: '/bibliotheque',
+  path: '/bibliotheque',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/bibliotheque': typeof BibliothequeRoute
   '/camp': typeof CampRoute
   '/chat': typeof ChatRouteWithChildren
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
@@ -106,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/bibliotheque': typeof AdminBibliothequeRoute
   '/admin/config': typeof AdminConfigRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
@@ -113,6 +127,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bibliotheque': typeof BibliothequeRoute
   '/camp': typeof CampRoute
   '/chat': typeof ChatRouteWithChildren
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
@@ -121,6 +136,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/bibliotheque': typeof AdminBibliothequeRoute
   '/admin/config': typeof AdminConfigRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
@@ -130,6 +146,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/bibliotheque': typeof BibliothequeRoute
   '/camp': typeof CampRoute
   '/chat': typeof ChatRouteWithChildren
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
@@ -138,6 +155,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/bibliotheque': typeof AdminBibliothequeRoute
   '/admin/config': typeof AdminConfigRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
@@ -148,6 +166,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/bibliotheque'
     | '/camp'
     | '/chat'
     | '/conditions-utilisation'
@@ -156,6 +175,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/reset-password'
+    | '/admin/bibliotheque'
     | '/admin/config'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
@@ -163,6 +183,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/bibliotheque'
     | '/camp'
     | '/chat'
     | '/conditions-utilisation'
@@ -171,6 +192,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/reset-password'
+    | '/admin/bibliotheque'
     | '/admin/config'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
@@ -179,6 +201,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/bibliotheque'
     | '/camp'
     | '/chat'
     | '/conditions-utilisation'
@@ -187,6 +210,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/reset-password'
+    | '/admin/bibliotheque'
     | '/admin/config'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
@@ -196,6 +220,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  BibliothequeRoute: typeof BibliothequeRoute
   CampRoute: typeof CampRoute
   ChatRoute: typeof ChatRouteWithChildren
   ConditionsUtilisationRoute: typeof ConditionsUtilisationRoute
@@ -264,6 +289,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CampRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bibliotheque': {
+      id: '/bibliotheque'
+      path: '/bibliotheque'
+      fullPath: '/bibliotheque'
+      preLoaderRoute: typeof BibliothequeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -306,16 +338,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConfigRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/bibliotheque': {
+      id: '/admin/bibliotheque'
+      path: '/bibliotheque'
+      fullPath: '/admin/bibliotheque'
+      preLoaderRoute: typeof AdminBibliothequeRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
+  AdminBibliothequeRoute: typeof AdminBibliothequeRoute
   AdminConfigRoute: typeof AdminConfigRoute
   AdminUtilisateursRoute: typeof AdminUtilisateursRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminBibliothequeRoute: AdminBibliothequeRoute,
   AdminConfigRoute: AdminConfigRoute,
   AdminUtilisateursRoute: AdminUtilisateursRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -336,6 +377,7 @@ const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  BibliothequeRoute: BibliothequeRoute,
   CampRoute: CampRoute,
   ChatRoute: ChatRouteWithChildren,
   ConditionsUtilisationRoute: ConditionsUtilisationRoute,

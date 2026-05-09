@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import ReactMarkdown from "react-markdown";
-import { Send, ThumbsUp, ThumbsDown, Copy, Share2, Menu, RefreshCw } from "lucide-react";
+import { Send, ThumbsUp, ThumbsDown, Copy, Share2, Menu, RefreshCw, BookOpen, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -406,10 +406,45 @@ const MessageBubble = memo(function MessageBubble({
             </button>
           </div>
         )}
+        {!isError && msg.content && !streaming && mentionsEedsDoc(msg.content) && (
+          <Link
+            to="/bibliotheque"
+            className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-md border border-[#622599]/30 bg-[#F3E8FF] px-2.5 py-1.5 text-xs font-semibold text-[#622599] hover:bg-[#622599] hover:text-white"
+          >
+            <BookOpen className="h-3.5 w-3.5" /> Voir dans la bibliothèque
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        )}
       </div>
     </div>
   );
 });
+
+const EEDS_DOC_KEYWORDS = [
+  "règlement",
+  "reglement",
+  "chant",
+  "hymne",
+  "programme louveteaux",
+  "programme éclaireurs",
+  "programme eclaireurs",
+  "programme routiers",
+  "code de conduite",
+  "guide du chef",
+  "premiers secours",
+  "nœuds scouts",
+  "noeuds scouts",
+  "convention onu",
+  "droits de l'enfant",
+  "droits de l enfant",
+  "bibliothèque",
+  "bibliotheque",
+];
+
+function mentionsEedsDoc(text: string): boolean {
+  const t = text.toLowerCase();
+  return EEDS_DOC_KEYWORDS.some((k) => t.includes(k));
+}
 
 function TypingDots() {
   return (

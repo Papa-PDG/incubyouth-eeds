@@ -183,6 +183,124 @@ export type Database = {
         }
         Relationships: []
       }
+      ressources: {
+        Row: {
+          annee: number
+          categorie: string
+          couverture_url: string | null
+          created_at: string
+          description: string | null
+          est_nouveau: boolean
+          est_populaire: boolean
+          fichier_url: string | null
+          id: string
+          nb_pages: number
+          nb_telechargements: number
+          tags: string[]
+          taille_mo: number
+          titre: string
+          updated_at: string
+          uploaded_by: string | null
+          visible: boolean
+        }
+        Insert: {
+          annee?: number
+          categorie: string
+          couverture_url?: string | null
+          created_at?: string
+          description?: string | null
+          est_nouveau?: boolean
+          est_populaire?: boolean
+          fichier_url?: string | null
+          id?: string
+          nb_pages?: number
+          nb_telechargements?: number
+          tags?: string[]
+          taille_mo?: number
+          titre: string
+          updated_at?: string
+          uploaded_by?: string | null
+          visible?: boolean
+        }
+        Update: {
+          annee?: number
+          categorie?: string
+          couverture_url?: string | null
+          created_at?: string
+          description?: string | null
+          est_nouveau?: boolean
+          est_populaire?: boolean
+          fichier_url?: string | null
+          id?: string
+          nb_pages?: number
+          nb_telechargements?: number
+          tags?: string[]
+          taille_mo?: number
+          titre?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          visible?: boolean
+        }
+        Relationships: []
+      }
+      ressources_favoris: {
+        Row: {
+          created_at: string
+          id: string
+          ressource_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ressource_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ressource_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ressources_favoris_ressource_id_fkey"
+            columns: ["ressource_id"]
+            isOneToOne: false
+            referencedRelation: "ressources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ressources_telechargements: {
+        Row: {
+          created_at: string
+          id: string
+          ressource_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ressource_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ressource_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ressources_telechargements_ressource_id_fkey"
+            columns: ["ressource_id"]
+            isOneToOne: false
+            referencedRelation: "ressources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
