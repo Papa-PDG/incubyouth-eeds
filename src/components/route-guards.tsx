@@ -24,3 +24,10 @@ export function AdminRoute({ children }: { children: ReactNode }) {
   if (role !== "admin") return <Navigate to="/" />;
   return <>{children}</>;
 }
+
+export function PublicOnlyRoute({ children }: { children: ReactNode }) {
+  const { session, loading } = useAuth();
+  if (loading) return <FullPageLoader />;
+  if (session) return <Navigate to="/chat" />;
+  return <>{children}</>;
+}
