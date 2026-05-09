@@ -79,11 +79,19 @@ function EspacePage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: p } = await supabase
-        .from("profiles")
-        .select("prenom, nom, email, groupe_scout, region, created_at")
-        .eq("id", user.id)
-        .maybeSingle();
+      // Charger profil et conversations en parallèle
+      const [{ data: p }, { data: c }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("prenom, nom, email, groupe_scout, region, created_at")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("conversations")
+          .select("id, titre, updated_at")
+          .order("updated_at", { ascending: false })
+          .limit(50),
+      ]);
       if (p) {
         setProfile(p);
         setPrenom(p.prenom ?? "");
@@ -91,11 +99,6 @@ function EspacePage() {
         setGroupe(p.groupe_scout ?? "");
         setRegion(p.region ?? "");
       }
-
-      const { data: c } = await supabase
-        .from("conversations")
-        .select("id, titre, updated_at")
-        .order("updated_at", { ascending: false });
       const conversations = (c ?? []) as ConvRow[];
       setConvs(conversations);
 
@@ -104,7 +107,8 @@ function EspacePage() {
         const { data: msgs } = await supabase
           .from("messages")
           .select("conversation_id, role, content, created_at")
-          .in("conversation_id", ids);
+          .in("conversation_id", ids)
+          .limit(1000);
         const counts: Record<string, number> = {};
         const userOnly: { content: string; created_at: string }[] = [];
         (msgs ?? []).forEach((m: any) => {

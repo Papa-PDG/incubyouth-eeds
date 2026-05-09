@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import ReactMarkdown from "react-markdown";
 import { Send, ThumbsUp, ThumbsDown, Copy, Share2, Menu, RefreshCw } from "lucide-react";
@@ -57,7 +57,8 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
         .from("messages")
         .select("id, role, content, created_at, feedback")
         .eq("conversation_id", conversationId)
-        .order("created_at");
+        .order("created_at")
+        .limit(100);
       setMessages((data ?? []) as Msg[]);
     })();
   }, [conversationId]);
@@ -183,18 +184,18 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     send(lastUserMsgRef.current);
   };
 
-  const setFeedback = async (idx: number, value: "positive" | "negative") => {
+  const setFeedback = useCallback(async (idx: number, value: "positive" | "negative") => {
     const msg = messages[idx];
     if (!msg.id) return;
     const newVal = msg.feedback === value ? null : value;
     await supabase.from("messages").update({ feedback: newVal }).eq("id", msg.id);
     setMessages((m) => m.map((x, i) => (i === idx ? { ...x, feedback: newVal } : x)));
-  };
+  }, [messages]);
 
-  const copyText = (t: string) => {
+  const copyText = useCallback((t: string) => {
     navigator.clipboard.writeText(t);
     toast.success("Copié");
-  };
+  }, []);
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -315,7 +316,7 @@ function EmptyState({ prenom, onPick }: { prenom: string; onPick: (s: string) =>
   );
 }
 
-function MessageBubble({
+const MessageBubble = memo(function MessageBubble({
   msg,
   streaming,
   onFeedback,
@@ -397,7 +398,7 @@ function MessageBubble({
       </div>
     </div>
   );
-}
+});
 
 function TypingDots() {
   return (
