@@ -24,6 +24,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ChatConversationIdRouteImport } from './routes/chat.$conversationId'
 import { Route as AdminUtilisateursRouteImport } from './routes/admin.utilisateurs'
 import { Route as AdminConfigRouteImport } from './routes/admin.config'
+import { Route as AdminBibliothequeRouteImport } from './routes/admin.bibliotheque'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -100,6 +101,11 @@ const AdminConfigRoute = AdminConfigRouteImport.update({
   path: '/config',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminBibliothequeRoute = AdminBibliothequeRouteImport.update({
+  id: '/bibliotheque',
+  path: '/bibliotheque',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/bibliotheque': typeof AdminBibliothequeRoute
   '/admin/config': typeof AdminConfigRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/bibliotheque': typeof AdminBibliothequeRoute
   '/admin/config': typeof AdminConfigRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
@@ -147,6 +155,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin/bibliotheque': typeof AdminBibliothequeRoute
   '/admin/config': typeof AdminConfigRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/reset-password'
+    | '/admin/bibliotheque'
     | '/admin/config'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/reset-password'
+    | '/admin/bibliotheque'
     | '/admin/config'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/reset-password'
+    | '/admin/bibliotheque'
     | '/admin/config'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
@@ -326,16 +338,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConfigRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/bibliotheque': {
+      id: '/admin/bibliotheque'
+      path: '/bibliotheque'
+      fullPath: '/admin/bibliotheque'
+      preLoaderRoute: typeof AdminBibliothequeRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
+  AdminBibliothequeRoute: typeof AdminBibliothequeRoute
   AdminConfigRoute: typeof AdminConfigRoute
   AdminUtilisateursRoute: typeof AdminUtilisateursRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminBibliothequeRoute: AdminBibliothequeRoute,
   AdminConfigRoute: AdminConfigRoute,
   AdminUtilisateursRoute: AdminUtilisateursRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -369,3 +390,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
