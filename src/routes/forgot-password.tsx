@@ -20,16 +20,25 @@ function ForgotPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!emailValid) {
+      setError("Adresse email invalide.");
+      return;
+    }
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setLoading(false);
-    if (error) setError(error.message);
-    else setSent(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) setError("Impossible d'envoyer l'email. Réessaie.");
+      else setSent(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
