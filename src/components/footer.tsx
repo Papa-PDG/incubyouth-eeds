@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Mail, Twitter, Facebook, Instagram } from "lucide-react";
-import logoEeds from "@/assets/logo-eeds.webp";
+import logoEeds from "@/assets/logo-incubyouth.png";
 
 export function Footer() {
   return (

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import logoEeds from "@/assets/logo-eeds.webp";
+import logoEeds from "@/assets/logo-incubyouth.png";
 import {
   DropdownMenu,
   DropdownMenuContent,

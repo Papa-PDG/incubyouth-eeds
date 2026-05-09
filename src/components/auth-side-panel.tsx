@@ -1,4 +1,4 @@
-import logo from "@/assets/logo-eeds.webp";
+import logo from "@/assets/logo-incubyouth.png";
 
 export function AuthSidePanel({ title }: { title: string }) {
   return (
