@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { PublicOnlyRoute } from "@/components/route-guards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +16,11 @@ export const Route = createFileRoute("/login")({
       { name: "description", content: "Connecte-toi à ton espace Incub'Youth." },
     ],
   }),
-  component: LoginPage,
+  component: () => (
+    <PublicOnlyRoute>
+      <LoginPage />
+    </PublicOnlyRoute>
+  ),
 });
 
 function LoginPage() {
@@ -39,13 +44,25 @@ function LoginPage() {
     if (!emailValid || !passwordValid) return;
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setError("Email ou mot de passe incorrect.");
-      return;
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        const m = error.message.toLowerCase();
+        if (m.includes("invalid login")) {
+          setError("Email ou mot de passe incorrect. Vérifie tes informations.");
+        } else if (m.includes("email not confirmed")) {
+          setError("Confirme ton email avant de te connecter. Vérifie ta boîte mail.");
+        } else if (m.includes("too many")) {
+          setError("Trop de tentatives. Attends quelques minutes.");
+        } else {
+          setError("Une erreur est survenue. Réessaie.");
+        }
+        return;
+      }
+      navigate({ to: "/chat" });
+    } finally {
+      setLoading(false);
     }
-    navigate({ to: "/chat" });
   };
 
   return (
