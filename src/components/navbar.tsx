@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import logoEeds from "@/assets/logo-eeds.webp";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +20,11 @@ const navLinks = [
 function Logo() {
   return (
     <Link to="/" className="flex items-center gap-2 text-primary">
-      <span aria-hidden className="text-2xl">☘</span>
+      <img
+        src={logoEeds}
+        alt="Logo EEDS"
+        className="h-9 w-9 rounded-full object-contain"
+      />
       <span className="text-[22px] font-bold tracking-tight">Incub'Youth</span>
     </Link>
   );
