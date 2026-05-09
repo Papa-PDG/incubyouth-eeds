@@ -25,14 +25,16 @@ export async function streamChat({
     const onAbort = () => ctrl.abort();
     signal?.addEventListener("abort", onAbort);
 
-    let data: { content?: string; error?: string; code?: string } | null = null;
-    let invokeError: { message?: string } | null = null;
+    type AiData = { content?: string; error?: string; code?: string } | null;
+    type InvokeErr = { message?: string } | null;
+    let data: AiData = null;
+    let invokeError: InvokeErr = null;
     try {
       const res = await supabase.functions.invoke("chat-ai", {
         body: { conversationHistory: history },
       });
-      data = res.data as typeof data;
-      invokeError = res.error as typeof invokeError;
+      data = res.data as AiData;
+      invokeError = res.error as InvokeErr;
     } catch (e) {
       if ((e as Error).name === "AbortError") {
         if (signal?.aborted) return;
