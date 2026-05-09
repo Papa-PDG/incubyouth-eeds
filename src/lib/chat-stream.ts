@@ -1,6 +1,6 @@
-type Msg = { role: "user" | "assistant"; content: string };
+import { supabase } from "@/integrations/supabase/client";
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+type Msg = { role: "user" | "assistant"; content: string };
 
 export async function streamChat({
   messages,
@@ -16,55 +16,36 @@ export async function streamChat({
   signal?: AbortSignal;
 }) {
   try {
-    const resp = await fetch(CHAT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({ messages }),
-      signal,
+    // Garder les 10 derniers messages pour économiser les tokens
+    const history = messages.slice(-10);
+
+    const { data, error } = await supabase.functions.invoke("chat-ai", {
+      body: { conversationHistory: history },
     });
 
-    if (!resp.ok || !resp.body) {
-      let err = "Incub'Youth ne répond pas. Réessaie.";
-      try {
-        const j = await resp.json();
-        if (j?.error) err = j.error;
-      } catch {}
-      onError(err);
+    if (signal?.aborted) return;
+
+    if (error) {
+      onError(error.message || "Incub'Youth ne répond pas. Réessaie.");
+      return;
+    }
+    if (data?.error) {
+      onError(data.error);
       return;
     }
 
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let done = false;
+    const content: string | undefined = data?.content;
+    if (!content) {
+      onError("Incub'Youth ne répond pas. Réessaie.");
+      return;
+    }
 
-    while (!done) {
-      const { done: d, value } = await reader.read();
-      if (d) break;
-      buffer += decoder.decode(value, { stream: true });
-      let nl: number;
-      while ((nl = buffer.indexOf("\n")) !== -1) {
-        let line = buffer.slice(0, nl);
-        buffer = buffer.slice(nl + 1);
-        if (line.endsWith("\r")) line = line.slice(0, -1);
-        if (!line.startsWith("data: ")) continue;
-        const json = line.slice(6).trim();
-        if (json === "[DONE]") {
-          done = true;
-          break;
-        }
-        try {
-          const parsed = JSON.parse(json);
-          const c = parsed.choices?.[0]?.delta?.content;
-          if (c) onDelta(c);
-        } catch {
-          buffer = line + "\n" + buffer;
-          break;
-        }
-      }
+    // Effet "streaming" en émettant le texte par petits morceaux
+    const chunkSize = 6;
+    for (let i = 0; i < content.length; i += chunkSize) {
+      if (signal?.aborted) return;
+      onDelta(content.slice(i, i + chunkSize));
+      await new Promise((r) => setTimeout(r, 12));
     }
     onDone();
   } catch (e) {
