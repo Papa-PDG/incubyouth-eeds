@@ -19,18 +19,42 @@ export async function streamChat({
     // Garder les 10 derniers messages pour économiser les tokens
     const history = messages.slice(-10);
 
-    const { data, error } = await supabase.functions.invoke("chat-ai", {
-      body: { conversationHistory: history },
-    });
+    // Timeout client 30s
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    const onAbort = () => ctrl.abort();
+    signal?.addEventListener("abort", onAbort);
+
+    type AiData = { content?: string; error?: string; code?: string } | null;
+    type InvokeErr = { message?: string } | null;
+    let data: AiData = null;
+    let invokeError: InvokeErr = null;
+    try {
+      const res = await supabase.functions.invoke("chat-ai", {
+        body: { conversationHistory: history },
+      });
+      data = res.data as AiData;
+      invokeError = res.error as InvokeErr;
+    } catch (e) {
+      if ((e as Error).name === "AbortError") {
+        if (signal?.aborted) return;
+        onError("La requête a pris trop de temps. Réessaie.");
+        return;
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+    }
 
     if (signal?.aborted) return;
 
-    if (error) {
-      onError(error.message || "Incub'Youth ne répond pas. Réessaie.");
-      return;
-    }
     if (data?.error) {
       onError(data.error);
+      return;
+    }
+    if (invokeError) {
+      onError(invokeError.message || "Incub'Youth ne répond pas. Réessaie.");
       return;
     }
 
