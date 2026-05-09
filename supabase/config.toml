@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.chat-ai]
 verify_jwt = false
+
+[functions.generate-camp]
+verify_jwt = false
