@@ -98,7 +98,7 @@ function RegisterPage() {
       }
       setSuccess(true);
       toast.success("Compte créé ! Vérifie ta boîte mail.");
-      setTimeout(() => navigate({ to: "/login" }), 3000);
+      setTimeout(() => navigate({ to: "/login" }), 5000);
     } finally {
       setLoading(false);
     }
@@ -111,7 +111,10 @@ function RegisterPage() {
           <CheckCircle2 className="mx-auto h-14 w-14 text-green-500" />
           <h1 className="text-2xl font-bold text-foreground">Compte créé !</h1>
           <p className="text-sm text-muted-foreground">
-            Vérifie ta boîte mail pour confirmer ton compte. Tu vas être redirigé vers la connexion…
+            Compte créé avec succès ! Vérifie ta boîte mail pour confirmer ton compte avant de te connecter.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Redirection vers la connexion dans 5 secondes…
           </p>
           <Link to="/login" className="inline-block font-medium text-[#622599] hover:underline">
             Aller à la connexion →
@@ -242,7 +245,7 @@ function RegisterPage() {
             />
             <Label htmlFor="cgu" className="text-sm font-normal leading-snug">
               J'accepte les{" "}
-              <Link to="/" className="text-[#622599] hover:underline">
+              <Link to="/conditions-utilisation" className="text-[#622599] hover:underline">
                 conditions d'utilisation
               </Link>
             </Label>
