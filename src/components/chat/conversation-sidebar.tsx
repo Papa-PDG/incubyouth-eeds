@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -8,6 +8,7 @@ import { formatDistanceToNow, isToday, isYesterday, differenceInDays } from "dat
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import logo from "@/assets/logo-eeds.webp";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Conv = { id: string; titre: string; updated_at: string };
 
@@ -23,15 +24,19 @@ export function ConversationSidebar({
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [convs, setConvs] = useState<Conv[]>([]);
+  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<{ prenom: string | null; nom: string | null } | null>(null);
 
   const load = async () => {
     if (!user) return;
+    setLoading(true);
     const { data } = await supabase
       .from("conversations")
       .select("id, titre, updated_at")
-      .order("updated_at", { ascending: false });
+      .order("updated_at", { ascending: false })
+      .limit(50);
     setConvs((data ?? []) as Conv[]);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -59,19 +64,23 @@ export function ConversationSidebar({
     if (activeId === id) navigate({ to: "/chat" });
   };
 
-  const groups: Record<string, Conv[]> = {
-    "Aujourd'hui": [],
-    "Hier": [],
-    "Cette semaine": [],
-    "Plus ancien": [],
-  };
-  for (const c of convs) {
-    const d = new Date(c.updated_at);
-    if (isToday(d)) groups["Aujourd'hui"].push(c);
-    else if (isYesterday(d)) groups["Hier"].push(c);
-    else if (differenceInDays(new Date(), d) < 7) groups["Cette semaine"].push(c);
-    else groups["Plus ancien"].push(c);
-  }
+  const groups = useMemo(() => {
+    const g: Record<string, Conv[]> = {
+      "Aujourd'hui": [],
+      "Hier": [],
+      "Cette semaine": [],
+      "Plus ancien": [],
+    };
+    const now = new Date();
+    for (const c of convs) {
+      const d = new Date(c.updated_at);
+      if (isToday(d)) g["Aujourd'hui"].push(c);
+      else if (isYesterday(d)) g["Hier"].push(c);
+      else if (differenceInDays(now, d) < 7) g["Cette semaine"].push(c);
+      else g["Plus ancien"].push(c);
+    }
+    return g;
+  }, [convs]);
 
   const initials = `${profile?.prenom?.[0] ?? ""}${profile?.nom?.[0] ?? ""}`.toUpperCase() || "?";
 
@@ -94,7 +103,20 @@ export function ConversationSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">
-        {Object.entries(groups).map(([label, items]) =>
+        {loading ? (
+          <div className="space-y-2 p-2">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center gap-2 px-2 py-2">
+                <Skeleton className="h-4 w-4 rounded" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3 w-3/4" />
+                  <Skeleton className="h-2 w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          Object.entries(groups).map(([label, items]) =>
           items.length === 0 ? null : (
             <div key={label} className="mb-4">
               <div className="px-2 pb-1 text-xs font-semibold uppercase text-muted-foreground">
@@ -133,7 +155,7 @@ export function ConversationSidebar({
               })}
             </div>
           ),
-        )}
+        ))}
       </div>
 
       <div className="flex items-center gap-2 border-t border-[#E5E7EB] p-3">
