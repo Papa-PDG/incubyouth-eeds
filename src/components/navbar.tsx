@@ -22,10 +22,9 @@ function Logo() {
     <Link to="/" className="flex items-center gap-2 text-primary">
       <img
         src={logoEeds}
-        alt="Logo EEDS"
-        className="h-9 w-9 rounded-full object-contain"
+        alt="Incub'Youth"
+        className="h-12 w-12 object-contain"
       />
-      <span className="text-[22px] font-bold tracking-tight">Incub'Youth</span>
     </Link>
   );
 }

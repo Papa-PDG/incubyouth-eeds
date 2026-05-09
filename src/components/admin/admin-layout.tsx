@@ -36,8 +36,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-[calc(100vh-4rem)] bg-[#F9FAFB]">
       <aside className="fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] w-[240px] flex-col bg-[#1F1535] text-white md:flex">
         <div className="flex items-center gap-2 px-5 py-5">
-          <img src={logoEeds} alt="" className="h-8 w-8 rounded-full" />
-          <span className="text-lg font-bold">Incub'Youth</span>
+          <img src={logoEeds} alt="Incub'Youth" className="h-12 w-12 rounded-full bg-white p-1" />
         </div>
         <div className="px-5 pb-4">
           <span className="inline-block rounded-full bg-[#622599]/40 px-3 py-1 text-xs font-semibold text-[#E9D5FF]">

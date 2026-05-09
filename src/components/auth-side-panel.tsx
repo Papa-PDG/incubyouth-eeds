@@ -5,8 +5,7 @@ export function AuthSidePanel({ title }: { title: string }) {
     <div className="relative flex flex-col justify-center bg-[#622599] p-8 text-white lg:p-12">
       <div className="mx-auto w-full max-w-sm space-y-8">
         <div className="flex items-center gap-3">
-          <img src={logo} alt="EEDS" className="h-12 w-12 rounded-full bg-white p-1" />
-          <span className="text-2xl font-bold tracking-tight">Incub'Youth</span>
+          <img src={logo} alt="Incub'Youth" className="h-16 w-16 rounded-full bg-white p-1" />
         </div>
         <h2 className="text-3xl font-bold leading-tight lg:text-4xl">{title}</h2>
         <ul className="space-y-4 text-base">

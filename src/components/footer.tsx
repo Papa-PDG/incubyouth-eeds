@@ -10,10 +10,9 @@ export function Footer() {
           <Link to="/" className="flex items-center gap-2">
             <img
               src={logoEeds}
-              alt="Logo EEDS"
-              className="h-9 w-9 rounded-full bg-white object-contain p-0.5"
+              alt="Incub'Youth"
+              className="h-14 w-14 rounded-full bg-white object-contain p-1"
             />
-            <span className="text-[22px] font-bold tracking-tight">Incub'Youth</span>
           </Link>
           <p className="mt-4 max-w-xs text-sm leading-7 text-white/70">
             La plateforme intelligente des Éclaireuses et Éclaireurs du Sénégal.

@@ -88,8 +88,7 @@ export function ConversationSidebar({
     <aside className="flex h-full w-full flex-col border-r border-[#E5E7EB] bg-[#FAF5FF]">
       <div className="border-b border-[#E5E7EB] p-4 space-y-3">
         <div className="flex items-center gap-2">
-          <img src={logo} alt="" className="h-8 w-8 rounded-full" />
-          <span className="font-bold text-[#622599]">Incub'Youth</span>
+          <img src={logo} alt="Incub'Youth" className="h-11 w-11 object-contain" />
         </div>
         <Button
           asChild
