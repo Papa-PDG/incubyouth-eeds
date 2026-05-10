@@ -121,7 +121,8 @@ function CalendrierPage() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const evtsP = db.from("evenements").select("*").eq("visible", true).order("date_debut");
+      const baseQ = db.from("evenements").select("*").order("date_debut");
+      const evtsP = isAdmin ? baseQ : baseQ.eq("visible", true);
       const inscrP = user
         ? db.from("evenements_inscriptions").select("evenement_id").eq("user_id", user.id)
         : Promise.resolve({ data: [] as { evenement_id: string }[] });
@@ -133,7 +134,7 @@ function CalendrierPage() {
     };
     void load();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, isAdmin]);
 
   const filtered = useMemo(
     () => (activeFilter === "all" ? evenements : evenements.filter((e) => e.type === activeFilter)),
