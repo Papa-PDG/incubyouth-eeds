@@ -1,5 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   MessageSquare,
   Plus,
@@ -85,10 +93,20 @@ type Profile = {
 
 const ONLINE_WINDOW_MS = 2 * 60 * 1000; // < 2 min => en ligne
 
-function presenceStatus(lastSeen?: string | null): {
+// Contexte de présence temps réel (Supabase Realtime Presence)
+const OnlineContext = createContext<Set<string>>(new Set());
+function useOnline() {
+  return useContext(OnlineContext);
+}
+
+function presenceStatus(
+  lastSeen?: string | null,
+  liveOnline?: boolean,
+): {
   online: boolean;
   label: string;
 } {
+  if (liveOnline) return { online: true, label: "En ligne" };
   if (!lastSeen) return { online: false, label: "Hors ligne" };
   const ms = Date.now() - new Date(lastSeen).getTime();
   if (ms < ONLINE_WINDOW_MS) return { online: true, label: "En ligne" };
@@ -162,6 +180,29 @@ function ForumPage() {
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState<number>(0);
   const [, forceTick] = useState(0);
+  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
+
+  // Présence temps réel : tous les utilisateurs ouverts sur /forum se voient en direct
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase.channel("forum-presence", {
+      config: { presence: { key: user.id } },
+    });
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState() as Record<string, unknown[]>;
+        setOnlineIds(new Set(Object.keys(state)));
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ online_at: new Date().toISOString() });
+        }
+      });
+    return () => {
+      void channel.untrack();
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   // Re-render every 30s pour rafraîchir les libellés "vu il y a X"
   useEffect(() => {
@@ -295,11 +336,14 @@ function ForumPage() {
   const totals = useMemo(() => {
     const totalReplies = Object.values(replyCounts).reduce((a, b) => a + b, 0);
     const resolus = threads.filter((t) => t.est_resolu).length;
-    const onlineNow = Object.values(profiles).filter((p) =>
-      presenceStatus(p.last_seen_at).online,
-    ).length;
+    const onlineNow = new Set<string>([
+      ...Array.from(onlineIds),
+      ...Object.values(profiles)
+        .filter((p) => presenceStatus(p.last_seen_at).online)
+        .map((p) => p.id),
+    ]).size;
     return { threads: threads.length, replies: totalReplies, resolus, onlineNow };
-  }, [threads, replyCounts, profiles]);
+  }, [threads, replyCounts, profiles, onlineIds]);
 
   const catCounts = useMemo(() => {
     const m: Record<string, number> = { all: threads.length };
@@ -355,6 +399,7 @@ function ForumPage() {
   const activeThread = threads.find((t) => t.id === openThreadId) ?? null;
 
   return (
+    <OnlineContext.Provider value={onlineIds}>
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       {!activeThread && (
         <>
@@ -474,7 +519,7 @@ function ForumPage() {
                           {initialsOf(author)}
                         </span>
                         <span className="absolute -bottom-0.5 -right-0.5">
-                          <PresenceDot online={presenceStatus(author?.last_seen_at).online} />
+                          <PresenceDot online={presenceStatus(author?.last_seen_at, author ? onlineIds.has(author.id) : false).online} />
                         </span>
                       </div>
                       <div className="min-w-0 flex-1">
@@ -523,13 +568,13 @@ function ForumPage() {
                             {author && (
                               <span
                                 className={`ml-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                  presenceStatus(author.last_seen_at).online
+                                  presenceStatus(author.last_seen_at, onlineIds.has(author.id)).online
                                     ? "bg-emerald-50 text-emerald-700"
                                     : "bg-slate-100 text-slate-500"
                                 }`}
                               >
-                                <PresenceDot online={presenceStatus(author.last_seen_at).online} className="!ring-0 !h-1.5 !w-1.5" />
-                                {presenceStatus(author.last_seen_at).label}
+                                <PresenceDot online={presenceStatus(author.last_seen_at, onlineIds.has(author.id)).online} className="!ring-0 !h-1.5 !w-1.5" />
+                                {presenceStatus(author.last_seen_at, onlineIds.has(author.id)).label}
                               </span>
                             )}
                           </span>
@@ -596,6 +641,7 @@ function ForumPage() {
         />
       )}
     </main>
+    </OnlineContext.Provider>
   );
 }
 
@@ -765,6 +811,7 @@ function ThreadDetail({
   const [reportTarget, setReportTarget] = useState<{ thread_id?: string; reply_id?: string } | null>(null);
   const meta = catMeta(thread.categorie);
   const loadedAuthorIds = useRef(new Set<string>());
+  const online = useOnline();
 
   const fetchProfilesForIds = async (ids: string[]) => {
     const missing = ids.filter((id) => !loadedAuthorIds.current.has(id));
@@ -951,7 +998,7 @@ function ThreadDetail({
               {initialsOf(author)}
             </span>
             <span className="absolute -bottom-0.5 -right-0.5">
-              <PresenceDot online={presenceStatus(author?.last_seen_at).online} />
+              <PresenceDot online={presenceStatus(author?.last_seen_at, author ? online.has(author.id) : false).online} />
             </span>
           </div>
           <div className="min-w-0 flex-1">
@@ -988,13 +1035,13 @@ function ThreadDetail({
                 {author && (
                   <span
                     className={`ml-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                      presenceStatus(author.last_seen_at).online
+                      presenceStatus(author.last_seen_at, online.has(author.id)).online
                         ? "bg-emerald-50 text-emerald-700"
                         : "bg-slate-100 text-slate-500"
                     }`}
                   >
-                    <PresenceDot online={presenceStatus(author.last_seen_at).online} className="!ring-0 !h-1.5 !w-1.5" />
-                    {presenceStatus(author.last_seen_at).label}
+                    <PresenceDot online={presenceStatus(author.last_seen_at, online.has(author.id)).online} className="!ring-0 !h-1.5 !w-1.5" />
+                    {presenceStatus(author.last_seen_at, online.has(author.id)).label}
                   </span>
                 )}
               </span>
@@ -1086,7 +1133,7 @@ function ThreadDetail({
                         {initialsOf(a)}
                       </span>
                       <span className="absolute -bottom-0.5 -right-0.5">
-                        <PresenceDot online={presenceStatus(a?.last_seen_at).online} className="!h-2 !w-2" />
+                        <PresenceDot online={presenceStatus(a?.last_seen_at, a ? online.has(a.id) : false).online} className="!h-2 !w-2" />
                       </span>
                     </span>
                     <span className="font-medium text-foreground">
@@ -1097,8 +1144,8 @@ function ThreadDetail({
                     {a && (
                       <>
                         <span>•</span>
-                        <span className={presenceStatus(a.last_seen_at).online ? "text-emerald-600" : ""}>
-                          {presenceStatus(a.last_seen_at).label}
+                        <span className={presenceStatus(a.last_seen_at, online.has(a.id)).online ? "text-emerald-600" : ""}>
+                          {presenceStatus(a.last_seen_at, online.has(a.id)).label}
                         </span>
                       </>
                     )}
