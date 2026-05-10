@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageCircle, BookOpen, Users, Tent } from "lucide-react";
+import { MessageCircle, BookOpen, Users, Calendar } from "lucide-react";
 import { Confetti } from "@/components/ui/confetti";
 import { Button } from "@/components/ui/button";
 
@@ -7,7 +7,7 @@ const FEATURES = [
   { icon: MessageCircle, label: "Chat IA", bg: "#F3E8FF", color: "#622599" },
   { icon: BookOpen, label: "Bibliothèque", bg: "#EAF3DE", color: "#27500A" },
   { icon: Users, label: "Communauté", bg: "#E1F5EE", color: "#085041" },
-  { icon: Tent, label: "Camp", bg: "#FAEEDA", color: "#633806" },
+  { icon: Calendar, label: "Calendrier", bg: "#FAEEDA", color: "#633806" },
 ];
 
 export function WelcomeScreen({
