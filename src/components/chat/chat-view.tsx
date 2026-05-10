@@ -273,7 +273,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
         {/* Input */}
         <div className="border-t border-[#E5E7EB] bg-white px-4 py-3">
           <div className="mx-auto max-w-3xl">
-            <div className="flex items-end gap-2 rounded-xl border border-[#E5E7EB] bg-white p-2 focus-within:border-[#622599]">
+            <div className="flex items-end gap-2 rounded-xl border border-[#E5E7EB] bg-white p-2 transition-all duration-200 focus-within:border-[#622599] focus-within:ring-2 focus-within:ring-[#622599]/15">
               <Textarea
                 ref={textareaRef}
                 value={input}
@@ -287,9 +287,13 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
                 onClick={() => send(input)}
                 disabled={!input.trim() || streaming}
                 size="icon"
-                className="h-9 w-9 rounded-lg bg-[#622599] hover:bg-[#4f1d7a] disabled:opacity-40"
+                className="btn-bounce h-9 w-9 rounded-lg bg-[#622599] hover:bg-[#4f1d7a] disabled:opacity-40"
               >
-                <Send className="h-4 w-4" />
+                {streaming ? (
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </div>
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
