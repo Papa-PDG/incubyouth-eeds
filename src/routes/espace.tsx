@@ -340,6 +340,73 @@ function EspacePage() {
 
       {/* CONVERSATIONS */}
       <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-xl font-bold">
+            <Tent className="h-5 w-5 text-[#622599]" /> Mes camps
+          </h3>
+          <Button asChild variant="outline" size="sm" className="border-[#622599] text-[#622599] hover:bg-[#F3E8FF] hover:text-[#622599]">
+            <Link to="/camp">Nouveau camp →</Link>
+          </Button>
+        </div>
+        {camps.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Aucun camp sauvegardé. <Link to="/camp" className="font-medium text-[#622599] hover:underline">Créer ton premier plan de camp →</Link>
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {camps.map((c) => (
+              <Card key={c.id} className="flex flex-col border-[#E5E7EB] p-4">
+                <div className="flex items-start gap-2">
+                  <Tent className="mt-0.5 h-4 w-4 flex-none text-[#622599]" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-semibold">{c.nom_camp}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {c.theme} · {c.duree} j · {c.region}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {format(new Date(c.created_at), "d MMM yyyy", { locale: fr })}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      exportCampPdf(
+                        {
+                          nomCamp: c.nom_camp,
+                          duree: c.duree,
+                          theme: c.theme,
+                          effectif: c.effectif,
+                          age: c.age,
+                          region: c.region,
+                        },
+                        c.plan_json,
+                        "all",
+                      )
+                    }
+                    className="flex-1 bg-[#622599] hover:bg-[#4f1d7a]"
+                  >
+                    <FileDown className="mr-2 h-4 w-4" /> PDF
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => removeCamp(c.id)}
+                    aria-label="Supprimer le camp"
+                    className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* CONVERSATIONS */}
+      <section className="space-y-3">
         <h3 className="text-xl font-bold">Conversations récentes</h3>
         {convs.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aucune conversation pour l'instant.</p>
