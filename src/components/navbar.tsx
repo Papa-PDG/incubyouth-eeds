@@ -11,6 +11,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const navLinks = [
   { to: "/", label: "Accueil" },
@@ -46,6 +56,7 @@ export function Navbar() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [newForum, setNewForum] = useState(0);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -65,7 +76,10 @@ export function Navbar() {
     return () => { cancelled = true; void supabase.removeChannel(ch); };
   }, [session]);
 
+  const requestSignOut = () => setConfirmSignOut(true);
+
   const handleSignOut = async () => {
+    setConfirmSignOut(false);
     await signOut();
     navigate({ to: "/" });
   };
@@ -114,7 +128,7 @@ export function Navbar() {
           {session ? (
             <>
               <button
-                onClick={handleSignOut}
+                onClick={requestSignOut}
                 title="Se déconnecter immédiatement"
                 aria-label="Se déconnecter"
                 className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-destructive/40 bg-transparent px-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
@@ -137,7 +151,7 @@ export function Navbar() {
                   <UserIcon className="mr-2 h-4 w-4" /> Mon profil
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                <DropdownMenuItem onClick={requestSignOut} className="text-destructive">
                   <LogOut className="mr-2 h-4 w-4" /> Déconnexion
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -206,7 +220,7 @@ export function Navbar() {
             <div className="mt-8 flex flex-col gap-3">
               {session ? (
                 <button
-                  onClick={() => { setOpen(false); handleSignOut(); }}
+                  onClick={() => { setOpen(false); requestSignOut(); }}
                   className="inline-flex h-11 items-center justify-center rounded-[10px] bg-destructive px-5 text-sm font-semibold text-destructive-foreground"
                 >
                   Déconnexion
@@ -233,6 +247,26 @@ export function Navbar() {
           </div>
         </div>
       )}
+
+      <AlertDialog open={confirmSignOut} onOpenChange={setConfirmSignOut}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la déconnexion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous êtes sur le point de vous déconnecter de votre session. Souhaitez-vous continuer&nbsp;?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSignOut}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Se déconnecter
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </header>
   );
 }
