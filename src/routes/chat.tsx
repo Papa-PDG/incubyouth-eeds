@@ -1,6 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Outlet, createFileRoute } from "@tanstack/react-router";
 import { ProtectedRoute } from "@/components/route-guards";
-import { ChatView } from "@/components/chat/chat-view";
 
 export const Route = createFileRoute("/chat")({
   head: () => ({
@@ -8,7 +7,7 @@ export const Route = createFileRoute("/chat")({
   }),
   component: () => (
     <ProtectedRoute>
-      <ChatView />
+      <Outlet />
     </ProtectedRoute>
   ),
 });
