@@ -195,8 +195,7 @@ function Index() {
                     height={900}
                     loading="eager"
                     decoding="async"
-                    /* @ts-expect-error fetchpriority is valid HTML, types lag */
-                    fetchpriority="high"
+                    fetchPriority="high"
                     className="block h-auto w-full object-cover"
                   />
                 </picture>
