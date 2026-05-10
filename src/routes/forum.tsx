@@ -465,13 +465,18 @@ function ForumPage() {
                     onClick={() => openThread(t)}
                   >
                     <div className="flex items-start gap-4">
-                      <span
-                        className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-                        style={{ background: meta.bg, color: meta.fg }}
-                        title={author ? `${author.prenom ?? ""} ${author.nom ?? ""}` : ""}
-                      >
-                        {initialsOf(author)}
-                      </span>
+                      <div className="relative flex-shrink-0">
+                        <span
+                          className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-semibold"
+                          style={{ background: meta.bg, color: meta.fg }}
+                          title={author ? `${author.prenom ?? ""} ${author.nom ?? ""}` : ""}
+                        >
+                          {initialsOf(author)}
+                        </span>
+                        <span className="absolute -bottom-0.5 -right-0.5">
+                          <PresenceDot online={presenceStatus(author?.last_seen_at).online} />
+                        </span>
+                      </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           {t.est_epingle && (
@@ -515,6 +520,18 @@ function ForumPage() {
                                 ? `${author.prenom ?? ""} ${author.nom ?? ""}`.trim() || "Membre"
                                 : "Membre"}
                             </span>
+                            {author && (
+                              <span
+                                className={`ml-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                  presenceStatus(author.last_seen_at).online
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : "bg-slate-100 text-slate-500"
+                                }`}
+                              >
+                                <PresenceDot online={presenceStatus(author.last_seen_at).online} className="!ring-0 !h-1.5 !w-1.5" />
+                                {presenceStatus(author.last_seen_at).label}
+                              </span>
+                            )}
                           </span>
                           <span>{formatDate(t.created_at)}</span>
                           <span className="inline-flex items-center gap-1">
