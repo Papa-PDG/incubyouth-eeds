@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import ReactMarkdown from "react-markdown";
-import { Send, ThumbsUp, ThumbsDown, Copy, Share2, Menu, RefreshCw, BookOpen, ArrowRight } from "lucide-react";
+import { Send, ThumbsUp, ThumbsDown, Copy, Check, Share2, Menu, RefreshCw, BookOpen, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -393,21 +393,19 @@ const MessageBubble = memo(function MessageBubble({
             {time && <span className="text-[10px]">{time}</span>}
             <button
               onClick={() => onFeedback("positive")}
-              className={`ml-2 rounded p-1 hover:bg-muted ${msg.feedback === "positive" ? "text-[#622599]" : ""}`}
+              className={`ml-2 rounded p-1 transition-transform hover:bg-muted active:scale-90 ${msg.feedback === "positive" ? "text-[#622599] anim-pop" : ""}`}
               aria-label="Utile"
             >
               <ThumbsUp className="h-3 w-3" />
             </button>
             <button
               onClick={() => onFeedback("negative")}
-              className={`rounded p-1 hover:bg-muted ${msg.feedback === "negative" ? "text-destructive" : ""}`}
+              className={`rounded p-1 transition-transform hover:bg-muted active:scale-90 ${msg.feedback === "negative" ? "text-destructive anim-pop" : ""}`}
               aria-label="Pas utile"
             >
               <ThumbsDown className="h-3 w-3" />
             </button>
-            <button onClick={onCopy} className="rounded p-1 hover:bg-muted" aria-label="Copier">
-              <Copy className="h-3 w-3" />
-            </button>
+            <CopyButton onCopy={onCopy} />
           </div>
         )}
         {!isError && msg.content && !streaming && mentionsEedsDoc(msg.content) && (
