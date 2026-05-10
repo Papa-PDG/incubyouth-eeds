@@ -5,6 +5,7 @@ import { fr } from "date-fns/locale";
 import {
   MessageSquare, Trash2, Pencil, ShieldAlert, BadgeCheck,
   Compass, Search, Scale, Leaf, HeartPulse, Award, Lock,
+  Tent, FileDown,
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/route-guards";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
+import { exportCampPdf, type CampPlan } from "@/lib/camp-pdf";
 
 export const Route = createFileRoute("/espace")({
   head: () => ({ meta: [{ title: "Mon Espace — Incub'Youth" }] }),
@@ -54,6 +56,17 @@ type Profile = {
   created_at: string;
 };
 type ConvRow = { id: string; titre: string; updated_at: string };
+type CampRow = {
+  id: string;
+  nom_camp: string;
+  duree: number;
+  theme: string;
+  effectif: string;
+  age: string;
+  region: string;
+  plan_json: CampPlan;
+  created_at: string;
+};
 
 function EspacePage() {
   const { user, signOut } = useAuth();
@@ -62,6 +75,7 @@ function EspacePage() {
   const [userMsgs, setUserMsgs] = useState<{ content: string; created_at: string }[]>([]);
   const [convs, setConvs] = useState<ConvRow[]>([]);
   const [convMsgCounts, setConvMsgCounts] = useState<Record<string, number>>({});
+  const [camps, setCamps] = useState<CampRow[]>([]);
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -92,6 +106,12 @@ function EspacePage() {
           .order("updated_at", { ascending: false })
           .limit(50),
       ]);
+      const { data: campsData } = await supabase
+        .from("camps")
+        .select("id, nom_camp, duree, theme, effectif, age, region, plan_json, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      setCamps(((campsData ?? []) as unknown) as CampRow[]);
       if (p) {
         setProfile(p);
         setPrenom(p.prenom ?? "");
@@ -204,6 +224,13 @@ function EspacePage() {
     if (error) return toast.error("Suppression impossible");
     setConvs((c) => c.filter((x) => x.id !== id));
     toast.success("Conversation supprimée");
+  };
+
+  const removeCamp = async (id: string) => {
+    const { error } = await supabase.from("camps").delete().eq("id", id);
+    if (error) return toast.error("Suppression impossible");
+    setCamps((c) => c.filter((x) => x.id !== id));
+    toast.success("Camp supprimé");
   };
 
   const deleteAccount = async () => {
