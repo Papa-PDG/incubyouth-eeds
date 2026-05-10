@@ -69,7 +69,7 @@ type CampRow = {
 };
 
 function EspacePage() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [userMsgs, setUserMsgs] = useState<{ content: string; created_at: string }[]>([]);
@@ -183,11 +183,22 @@ function EspacePage() {
 
   const handleSave = async () => {
     if (!user) return;
+    if (!prenom.trim() || !nom.trim()) {
+      toast.error("Prénom et nom sont obligatoires");
+      return;
+    }
     setSaving(true);
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("profiles")
-      .update({ prenom, nom, groupe_scout: groupe || null, region: region || null })
-      .eq("id", user.id);
+      .update({
+        prenom: prenom.trim(),
+        nom: nom.trim(),
+        groupe_scout: groupe.trim() || null,
+        region: region || null,
+      })
+      .eq("id", user.id)
+      .select("prenom, nom, email, groupe_scout, region, created_at")
+      .maybeSingle();
 
     if (newPwd) {
       if (newPwd.length < 8) {
@@ -212,11 +223,19 @@ function EspacePage() {
 
     setSaving(false);
     if (error) {
-      toast.error("Erreur lors de la sauvegarde");
+      toast.error(error.message || "Erreur lors de la sauvegarde");
       return;
     }
     toast.success("Profil mis à jour");
-    setProfile((p) => (p ? { ...p, prenom, nom, groupe_scout: groupe, region } : p));
+    if (updated) {
+      setProfile(updated as Profile);
+      setPrenom(updated.prenom ?? "");
+      setNom(updated.nom ?? "");
+      setGroupe(updated.groupe_scout ?? "");
+      setRegion(updated.region ?? "");
+    }
+    // Sync the global auth profile so navbar & other consumers reflect changes
+    await refreshProfile();
     setEditOpen(false);
   };
 
