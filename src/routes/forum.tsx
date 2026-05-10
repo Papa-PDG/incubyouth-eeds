@@ -1,5 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   MessageSquare,
   Plus,
@@ -85,10 +93,20 @@ type Profile = {
 
 const ONLINE_WINDOW_MS = 2 * 60 * 1000; // < 2 min => en ligne
 
-function presenceStatus(lastSeen?: string | null): {
+// Contexte de présence temps réel (Supabase Realtime Presence)
+const OnlineContext = createContext<Set<string>>(new Set());
+function useOnline() {
+  return useContext(OnlineContext);
+}
+
+function presenceStatus(
+  lastSeen?: string | null,
+  liveOnline?: boolean,
+): {
   online: boolean;
   label: string;
 } {
+  if (liveOnline) return { online: true, label: "En ligne" };
   if (!lastSeen) return { online: false, label: "Hors ligne" };
   const ms = Date.now() - new Date(lastSeen).getTime();
   if (ms < ONLINE_WINDOW_MS) return { online: true, label: "En ligne" };
