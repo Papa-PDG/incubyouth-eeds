@@ -265,8 +265,14 @@ function EspacePage() {
 
   if (!profile) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#622599] border-t-transparent" />
+      <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+        <div className="skeleton h-32 w-full" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton h-24 w-full" />
+          ))}
+        </div>
+        <div className="skeleton h-48 w-full" />
       </div>
     );
   }
@@ -274,9 +280,9 @@ function EspacePage() {
   return (
     <main className="mx-auto max-w-5xl space-y-8 px-4 py-8">
       {/* HEADER PROFILE */}
-      <Card className="border-[#E5E7EB] bg-gradient-to-br from-[#FAF5FF] to-white p-6">
+      <Card className="anim-fade-up border-[#E5E7EB] bg-gradient-to-br from-[#FAF5FF] to-white p-6">
         <div className="flex flex-col items-start gap-5 md:flex-row md:items-center">
-          <div className="flex h-20 w-20 flex-none items-center justify-center rounded-full bg-[#622599] text-[28px] font-bold text-white">
+          <div className="anim-pop flex h-20 w-20 flex-none items-center justify-center rounded-full bg-[#622599] text-[28px] font-bold text-white shadow-lg shadow-[#622599]/20 transition-transform hover:scale-105">
             {initials}
           </div>
           <div className="flex-1 space-y-2">
@@ -309,7 +315,7 @@ function EspacePage() {
                 editRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               }, 50);
             }}
-            className="border-[#622599] text-[#622599] hover:bg-[#F3E8FF] hover:text-[#622599]"
+            className="btn-bounce border-[#622599] text-[#622599] hover:bg-[#F3E8FF] hover:text-[#622599]"
           >
             <Pencil className="mr-2 h-4 w-4" /> Modifier mon profil
           </Button>
@@ -323,9 +329,15 @@ function EspacePage() {
           { label: "Conversations", value: convs.length },
           { label: "Thème favori", value: favTheme },
           { label: "Jours actif", value: activeDays },
-        ].map((m) => (
-          <Card key={m.label} className="border-[#E5E7EB] p-5">
-            <div className="text-3xl font-bold text-[#622599]">{m.value}</div>
+        ].map((m, i) => (
+          <Card
+            key={m.label}
+            className="card-hover anim-fade-up border-[#E5E7EB] p-5"
+            style={{ animationDelay: `${i * 0.08}s` }}
+          >
+            <div className="text-3xl font-bold text-[#622599]">
+              {typeof m.value === "number" ? <CountUp target={m.value} /> : m.value}
+            </div>
             <div className="mt-1 text-sm text-muted-foreground">{m.label}</div>
           </Card>
         ))}
@@ -334,19 +346,43 @@ function EspacePage() {
       {/* BADGES */}
       <section className="space-y-3">
         <h3 className="text-xl font-bold">Tes badges Incub'Youth</h3>
+        {/* XP bar = pourcentage badges débloqués */}
+        {badges.length > 0 && (() => {
+          const unlockedCount = badges.filter((b) => b.current >= b.goal).length;
+          const pct = Math.round((unlockedCount / badges.length) * 100);
+          return (
+            <div className="anim-fade-up space-y-2 rounded-xl border border-[#E5E7EB] bg-[#FAF5FF] p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-semibold text-[#622599]">
+                  Progression : <CountUp target={unlockedCount} />/{badges.length} badges
+                </span>
+                <span className="text-xs font-medium text-muted-foreground">{pct}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-white">
+                <div className="xp-bar-fill" style={{ ["--target-width" as never]: `${pct}%` }} />
+              </div>
+            </div>
+          );
+        })()}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          {badges.map((b) => {
+          {badges.map((b, i) => {
             const unlocked = b.current >= b.goal;
             const Icon = b.icon;
             return (
               <Card
                 key={b.key}
-                className={`border p-4 text-center ${
+                className={`card-hover anim-fade-up border p-4 text-center ${
                   unlocked ? "border-[#E5E7EB] bg-[#F3E8FF]" : "border-[#E5E7EB] bg-[#F9FAFB]"
                 }`}
+                style={{ animationDelay: `${i * 0.05}s` }}
               >
                 <div className="relative mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-white">
-                  <Icon className={`h-6 w-6 ${unlocked ? "text-[#622599]" : "text-muted-foreground/40"}`} />
+                  {unlocked && <span className="badge-ring" aria-hidden />}
+                  <Icon
+                    className={`h-6 w-6 transition-transform ${
+                      unlocked ? "text-[#622599] anim-pop" : "text-muted-foreground/40"
+                    }`}
+                  />
                   {!unlocked && (
                     <Lock className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-white p-0.5 text-muted-foreground" />
                   )}
