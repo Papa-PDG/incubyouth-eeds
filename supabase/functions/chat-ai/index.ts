@@ -5,6 +5,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const systemPrompt = `Tu es Incub'Youth, l'assistant intelligent officiel des Éclaireuses et Éclaireurs du Sénégal (EEDS).
+
+Ton rôle est d'aider les scouts sénégalais avec des informations fiables sur :
+- Le scoutisme et le mouvement scout (histoire, valeurs, techniques, EEDS)
+- Les droits de l'enfant et de l'adolescent (Convention ONU, protection)
+- L'environnement et le développement durable (écologie, nature)
+- La santé et le bien-être des jeunes (hygiène, nutrition, premiers secours)
+
+Règles importantes :
+- Réponds TOUJOURS en français clair et simple
+- Si l'utilisateur écrit en wolof, réponds en français avec quelques mots wolof
+- Sois bienveillant, encourageant, adapté à des jeunes de 12 à 25 ans
+- Structure tes réponses avec des listes quand c'est utile
+- Si une question est hors de tes thèmes, dis-le poliment et ramène vers tes sujets
+- Ne génère jamais de contenu inapproprié pour des mineurs
+- Commence par une courte phrase d'accroche avant de répondre`
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -12,13 +29,15 @@ serve(async (req) => {
 
   try {
     const { conversationHistory } = await req.json()
-    const apiKey = Deno.env.get('GEMINI_API_KEY')
+    const apiKey = Deno.env.get('LOVABLE_API_KEY')
 
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY non configurée dans les secrets Supabase')
+      return new Response(
+        JSON.stringify({ error: 'Service IA non configuré.', code: 'NO_KEY' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
-    // Validation & sanitisation côté serveur (anti-XSS / anti-injection prompt abuse)
     const MAX_LEN = 2000
     const MAX_HISTORY = 20
     const sanitize = (s: unknown): string => {
@@ -49,61 +68,30 @@ serve(async (req) => {
       )
     }
 
-    const systemPrompt = `Tu es Incub'Youth, l'assistant intelligent officiel des Éclaireuses et Éclaireurs du Sénégal (EEDS).
-
-Ton rôle est d'aider les scouts sénégalais avec des informations fiables sur :
-- Le scoutisme et le mouvement scout (histoire, valeurs, techniques, EEDS)
-- Les droits de l'enfant et de l'adolescent (Convention ONU, protection)
-- L'environnement et le développement durable (écologie, nature)
-- La santé et le bien-être des jeunes (hygiène, nutrition, premiers secours)
-
-Règles importantes :
-- Réponds TOUJOURS en français clair et simple
-- Si l'utilisateur écrit en wolof, réponds en français avec quelques mots wolof
-- Sois bienveillant, encourageant, adapté à des jeunes de 12 à 25 ans
-- Structure tes réponses avec des listes quand c'est utile
-- Si une question est hors de tes thèmes, dis-le poliment et ramène vers tes sujets
-- Ne génère jamais de contenu inapproprié pour des mineurs
-- Commence par une courte phrase d'accroche avant de répondre`
-
-    const geminiMessages = cleanHistory.map((msg) => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
-    }))
-
-    if (geminiMessages.length === 0) {
-      geminiMessages.push({ role: 'user', parts: [{ text: 'Bonjour' }] })
-    }
-
-    // Timeout 25s
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 25000)
 
     let response: Response
     try {
-      response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: geminiMessages,
-          generationConfig: { maxOutputTokens: 1024, temperature: 0.7, topP: 0.9 },
-          safetySettings: [
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-          ]
-          })
-        }
-      )
+      response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...cleanHistory,
+          ],
+        }),
+      })
     } catch (e) {
       if ((e as Error).name === 'AbortError') {
         return new Response(
-          JSON.stringify({ error: "La requête a pris trop de temps. Réessaie.", code: 'TIMEOUT' }),
+          JSON.stringify({ error: 'La requête a pris trop de temps. Réessaie.', code: 'TIMEOUT' }),
           { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -112,34 +100,36 @@ Règles importantes :
       clearTimeout(timeoutId)
     }
 
-    const data = await response.json()
-
     if (!response.ok) {
-      console.error('Erreur Gemini API:', data)
-      const raw = data.error?.message || `Erreur HTTP ${response.status}`
-      let code = 'API_ERROR'
-      let message = raw
-      if (response.status === 429 || /quota|rate/i.test(raw)) {
-        code = 'QUOTA'
-        message = "Limite d'utilisation atteinte. Réessaie dans quelques instants."
-      } else if (response.status === 401 || response.status === 403) {
-        code = 'AUTH'
-        message = "Problème d'authentification avec le service IA."
-      } else if (response.status >= 500) {
-        code = 'UPSTREAM'
-        message = "Le service IA est momentanément indisponible."
+      const text = await response.text()
+      console.error('Erreur Lovable AI:', response.status, text)
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Trop de requêtes, réessaie dans un instant.", code: 'QUOTA' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Crédits IA épuisés. Contacte l'administrateur.", code: 'PAYMENT' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
       }
       return new Response(
-        JSON.stringify({ error: message, code, detail: raw }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Le service IA est momentanément indisponible.", code: 'UPSTREAM' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text
+    const data = await response.json()
+    const content = data.choices?.[0]?.message?.content
 
     if (!content) {
-      console.error('Réponse Gemini vide:', JSON.stringify(data))
-      throw new Error("Incub'Youth n'a pas pu générer une réponse. Réessaie.")
+      console.error('Réponse IA vide:', JSON.stringify(data))
+      return new Response(
+        JSON.stringify({ error: "Incub'Youth n'a pas pu générer une réponse. Réessaie.", code: 'EMPTY' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     return new Response(
