@@ -24,6 +24,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ChatConversationIdRouteImport } from './routes/chat.$conversationId'
 import { Route as AdminUtilisateursRouteImport } from './routes/admin.utilisateurs'
+import { Route as AdminForumRouteImport } from './routes/admin.forum'
 import { Route as AdminConfigRouteImport } from './routes/admin.config'
 import { Route as AdminBibliothequeRouteImport } from './routes/admin.bibliotheque'
 
@@ -102,6 +103,11 @@ const AdminUtilisateursRoute = AdminUtilisateursRouteImport.update({
   path: '/utilisateurs',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminForumRoute = AdminForumRouteImport.update({
+  id: '/forum',
+  path: '/forum',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminConfigRoute = AdminConfigRouteImport.update({
   id: '/config',
   path: '/config',
@@ -128,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/bibliotheque': typeof AdminBibliothequeRoute
   '/admin/config': typeof AdminConfigRoute
+  '/admin/forum': typeof AdminForumRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/bibliotheque': typeof AdminBibliothequeRoute
   '/admin/config': typeof AdminConfigRoute
+  '/admin/forum': typeof AdminForumRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
   '/admin': typeof AdminIndexRoute
@@ -166,6 +174,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/bibliotheque': typeof AdminBibliothequeRoute
   '/admin/config': typeof AdminConfigRoute
+  '/admin/forum': typeof AdminForumRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/bibliotheque'
     | '/admin/config'
+    | '/admin/forum'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
     | '/admin/'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/bibliotheque'
     | '/admin/config'
+    | '/admin/forum'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
     | '/admin'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/bibliotheque'
     | '/admin/config'
+    | '/admin/forum'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
     | '/admin/'
@@ -351,6 +363,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUtilisateursRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/forum': {
+      id: '/admin/forum'
+      path: '/forum'
+      fullPath: '/admin/forum'
+      preLoaderRoute: typeof AdminForumRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/config': {
       id: '/admin/config'
       path: '/config'
@@ -371,6 +390,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminBibliothequeRoute: typeof AdminBibliothequeRoute
   AdminConfigRoute: typeof AdminConfigRoute
+  AdminForumRoute: typeof AdminForumRoute
   AdminUtilisateursRoute: typeof AdminUtilisateursRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -378,6 +398,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminBibliothequeRoute: AdminBibliothequeRoute,
   AdminConfigRoute: AdminConfigRoute,
+  AdminForumRoute: AdminForumRoute,
   AdminUtilisateursRoute: AdminUtilisateursRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -411,13 +432,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

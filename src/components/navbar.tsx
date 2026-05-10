@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import logoEeds from "@/assets/logo-full.png";
 import {
   DropdownMenu,
@@ -43,6 +44,25 @@ export function Navbar() {
   const { session, user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [newForum, setNewForum] = useState(0);
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    const compute = async () => {
+      const last = (() => { try { return localStorage.getItem("forum:last-visit"); } catch { return null; } })();
+      let q = supabase.from("forum_threads").select("id", { count: "exact", head: true });
+      if (last) q = q.gt("created_at", last);
+      const { count } = await q;
+      if (!cancelled) setNewForum(count ?? 0);
+    };
+    void compute();
+    const ch = supabase
+      .channel("nav-forum")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "forum_threads" }, () => void compute())
+      .subscribe();
+    return () => { cancelled = true; void supabase.removeChannel(ch); };
+  }, [session]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -68,7 +88,14 @@ export function Navbar() {
               }}
               activeOptions={{ exact: l.to === "/" }}
             >
-              {l.label}
+              <span className="relative inline-flex items-center">
+                {l.label}
+                {l.to === "/forum" && newForum > 0 && (
+                  <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                    {newForum > 9 ? "9+" : newForum}
+                  </span>
+                )}
+              </span>
             </Link>
           ))}
           {isAdmin && (
