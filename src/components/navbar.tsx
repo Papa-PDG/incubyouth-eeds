@@ -27,8 +27,8 @@ function Logo() {
     <Link to="/" className="flex items-center gap-2 text-primary">
       <img
         src={logoEeds}
-        alt="Incub'Youth"
-        className="h-10 w-auto object-contain"
+        alt="Incub'Youth — Éclaireuses et Éclaireurs du Sénégal"
+        className="h-14 w-auto object-contain"
       />
     </Link>
   );
