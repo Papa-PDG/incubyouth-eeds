@@ -115,6 +115,101 @@ export type Database = {
           },
         ]
       }
+      evenements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date_debut: string
+          date_fin: string
+          description: string | null
+          google_calendar_id: string | null
+          id: string
+          lien_externe: string | null
+          lieu: string | null
+          nb_inscrits: number
+          nb_places: number
+          rappel_email: boolean
+          region: string
+          responsable: string | null
+          titre: string
+          type: string
+          updated_at: string
+          visible: boolean
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date_debut: string
+          date_fin: string
+          description?: string | null
+          google_calendar_id?: string | null
+          id?: string
+          lien_externe?: string | null
+          lieu?: string | null
+          nb_inscrits?: number
+          nb_places?: number
+          rappel_email?: boolean
+          region?: string
+          responsable?: string | null
+          titre: string
+          type: string
+          updated_at?: string
+          visible?: boolean
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date_debut?: string
+          date_fin?: string
+          description?: string | null
+          google_calendar_id?: string | null
+          id?: string
+          lien_externe?: string | null
+          lieu?: string | null
+          nb_inscrits?: number
+          nb_places?: number
+          rappel_email?: boolean
+          region?: string
+          responsable?: string | null
+          titre?: string
+          type?: string
+          updated_at?: string
+          visible?: boolean
+        }
+        Relationships: []
+      }
+      evenements_inscriptions: {
+        Row: {
+          created_at: string
+          evenement_id: string
+          id: string
+          statut: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          evenement_id: string
+          id?: string
+          statut?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          evenement_id?: string
+          id?: string
+          statut?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evenements_inscriptions_evenement_id_fkey"
+            columns: ["evenement_id"]
+            isOneToOne: false
+            referencedRelation: "evenements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       forum_likes: {
         Row: {
           created_at: string
