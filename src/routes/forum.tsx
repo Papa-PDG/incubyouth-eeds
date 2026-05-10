@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   MessageSquare,
   Plus,
@@ -18,6 +18,10 @@ import {
   HeartPulse,
   Shield,
   Sparkles,
+  ExternalLink,
+  Users,
+  Flame,
+  Clock,
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/route-guards";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +63,7 @@ type Thread = {
   nb_vues: number;
   nb_likes: number;
   created_at: string;
+  updated_at?: string;
 };
 
 type Reply = {
@@ -82,8 +87,23 @@ const CATEGORIES = [
   { key: "general", label: "Général", Icon: MessageSquare, bg: "#FAEEDA", fg: "#633806" },
 ] as const;
 
+const SORTS = [
+  { key: "recent", label: "Récent", Icon: Clock },
+  { key: "populaire", label: "Populaire", Icon: Flame },
+  { key: "actif", label: "Actif", Icon: MessageSquare },
+] as const;
+
+const LAST_VISIT_KEY = "forum:last-visit";
+
 function catMeta(key: string) {
   return CATEGORIES.find((c) => c.key === key) ?? CATEGORIES[0];
+}
+
+function initialsOf(p?: Profile) {
+  if (!p) return "?";
+  const a = (p.prenom?.[0] ?? "").toUpperCase();
+  const b = (p.nom?.[0] ?? "").toUpperCase();
+  return (a + b) || "?";
 }
 
 function formatDate(iso: string) {
@@ -100,13 +120,24 @@ function formatDate(iso: string) {
 function ForumPage() {
   const { user, isAdmin } = useAuth();
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [replyCounts, setReplyCounts] = useState<Record<string, number>>({});
+  const [lastReplyAt, setLastReplyAt] = useState<Record<string, string>>({});
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [likedThreadIds, setLikedThreadIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
+  const [sort, setSort] = useState<(typeof SORTS)[number]["key"]>("recent");
   const [openCreate, setOpenCreate] = useState(false);
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+  const [memberCount, setMemberCount] = useState<number>(0);
+
+  // mark visit
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAST_VISIT_KEY, new Date().toISOString());
+    } catch { /* ignore */ }
+  }, []);
 
   const loadThreads = async () => {
     setLoading(true);
@@ -122,6 +153,23 @@ function ForumPage() {
     }
     const list = (data ?? []) as Thread[];
     setThreads(list);
+
+    // reply counts + last activity
+    if (list.length) {
+      const { data: allReplies } = await db
+        .from("forum_replies")
+        .select("thread_id, created_at")
+        .in("thread_id", list.map((t) => t.id));
+      const counts: Record<string, number> = {};
+      const last: Record<string, string> = {};
+      ((allReplies ?? []) as { thread_id: string; created_at: string }[]).forEach((r) => {
+        counts[r.thread_id] = (counts[r.thread_id] ?? 0) + 1;
+        if (!last[r.thread_id] || r.created_at > last[r.thread_id]) last[r.thread_id] = r.created_at;
+      });
+      setReplyCounts(counts);
+      setLastReplyAt(last);
+    }
+
     const ids = Array.from(new Set(list.map((t) => t.user_id)));
     if (ids.length) {
       const { data: profs } = await supabase
@@ -140,51 +188,88 @@ function ForumPage() {
         .not("thread_id", "is", null);
       setLikedThreadIds(new Set(((likes ?? []) as { thread_id: string }[]).map((l) => l.thread_id)));
     }
+
+    // member count = distinct profiles
+    const { count } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true });
+    setMemberCount(count ?? 0);
+
     setLoading(false);
   };
 
   useEffect(() => {
     void loadThreads();
+    // realtime
+    const ch = supabase
+      .channel("forum-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "forum_threads" },
+        () => { void loadThreads(); },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "forum_replies" },
+        (payload) => {
+          const r = payload.new as Reply;
+          setReplyCounts((c) => ({ ...c, [r.thread_id]: (c[r.thread_id] ?? 0) + 1 }));
+          setLastReplyAt((l) => ({ ...l, [r.thread_id]: r.created_at }));
+        },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  const totals = useMemo(() => {
+    const totalReplies = Object.values(replyCounts).reduce((a, b) => a + b, 0);
+    const resolus = threads.filter((t) => t.est_resolu).length;
+    return { threads: threads.length, replies: totalReplies, resolus };
+  }, [threads, replyCounts]);
+
+  const catCounts = useMemo(() => {
+    const m: Record<string, number> = { all: threads.length };
+    threads.forEach((t) => { m[t.categorie] = (m[t.categorie] ?? 0) + 1; });
+    return m;
+  }, [threads]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return threads.filter((t) => {
+    let arr = threads.filter((t) => {
       if (activeCat !== "all" && t.categorie !== activeCat) return false;
       if (q && !t.titre.toLowerCase().includes(q) && !t.contenu.toLowerCase().includes(q))
         return false;
       return true;
     });
-  }, [threads, activeCat, search]);
+    arr = [...arr].sort((a, b) => {
+      if (a.est_epingle !== b.est_epingle) return a.est_epingle ? -1 : 1;
+      if (sort === "populaire") {
+        return (b.nb_likes + (replyCounts[b.id] ?? 0)) - (a.nb_likes + (replyCounts[a.id] ?? 0));
+      }
+      if (sort === "actif") {
+        const la = lastReplyAt[a.id] ?? a.created_at;
+        const lb = lastReplyAt[b.id] ?? b.created_at;
+        return lb.localeCompare(la);
+      }
+      return b.created_at.localeCompare(a.created_at);
+    });
+    return arr;
+  }, [threads, activeCat, search, sort, replyCounts, lastReplyAt]);
 
   const toggleThreadLike = async (thread: Thread) => {
     if (!user) return;
     const liked = likedThreadIds.has(thread.id);
     if (liked) {
       await db.from("forum_likes").delete().eq("user_id", user.id).eq("thread_id", thread.id);
-      setLikedThreadIds((s) => {
-        const n = new Set(s);
-        n.delete(thread.id);
-        return n;
-      });
-      await db
-        .from("forum_threads")
-        .update({ nb_likes: Math.max(0, thread.nb_likes - 1) })
-        .eq("id", thread.id);
-      setThreads((arr) =>
-        arr.map((t) => (t.id === thread.id ? { ...t, nb_likes: Math.max(0, t.nb_likes - 1) } : t)),
-      );
+      setLikedThreadIds((s) => { const n = new Set(s); n.delete(thread.id); return n; });
+      await db.from("forum_threads").update({ nb_likes: Math.max(0, thread.nb_likes - 1) }).eq("id", thread.id);
+      setThreads((arr) => arr.map((t) => (t.id === thread.id ? { ...t, nb_likes: Math.max(0, t.nb_likes - 1) } : t)));
     } else {
       await db.from("forum_likes").insert({ user_id: user.id, thread_id: thread.id });
       setLikedThreadIds((s) => new Set(s).add(thread.id));
-      await db
-        .from("forum_threads")
-        .update({ nb_likes: thread.nb_likes + 1 })
-        .eq("id", thread.id);
-      setThreads((arr) =>
-        arr.map((t) => (t.id === thread.id ? { ...t, nb_likes: t.nb_likes + 1 } : t)),
-      );
+      await db.from("forum_threads").update({ nb_likes: thread.nb_likes + 1 }).eq("id", thread.id);
+      setThreads((arr) => arr.map((t) => (t.id === thread.id ? { ...t, nb_likes: t.nb_likes + 1 } : t)));
     }
   };
 
@@ -200,6 +285,7 @@ function ForumPage() {
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       {!activeThread && (
         <>
+          {/* Header + stats */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-foreground sm:text-4xl">
@@ -217,7 +303,15 @@ function ForumPage() {
             </button>
           </div>
 
-          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="Discussions" value={totals.threads} Icon={MessageSquare} color="#622599" bg="#F3E8FF" />
+            <StatCard label="Réponses" value={totals.replies} Icon={Send} color="#0C447C" bg="#E6F1FB" />
+            <StatCard label="Membres" value={memberCount} Icon={Users} color="#27500A" bg="#EAF3DE" />
+            <StatCard label="Résolus" value={totals.resolus} Icon={CheckCircle2} color="#085041" bg="#E1F5EE" />
+          </div>
+
+          {/* Search + sort */}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -227,11 +321,29 @@ function ForumPage() {
                 className="h-11 w-full rounded-[10px] border border-border bg-background pl-10 pr-4 text-sm outline-none focus:border-primary"
               />
             </div>
+            <div className="inline-flex rounded-[10px] border border-border bg-background p-1">
+              {SORTS.map((s) => {
+                const active = sort === s.key;
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => setSort(s.key)}
+                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                      active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <s.Icon className="h-3.5 w-3.5" /> {s.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
+          {/* Category pills with counts */}
           <div className="mt-4 flex flex-wrap gap-2">
             {CATEGORIES.map((c) => {
               const active = activeCat === c.key;
+              const n = catCounts[c.key] ?? 0;
               return (
                 <button
                   key={c.key}
@@ -241,13 +353,18 @@ function ForumPage() {
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-background text-muted-foreground hover:border-primary/40"
                   }`}
+                  style={!active ? { background: c.bg, color: c.fg, borderColor: "transparent" } : undefined}
                 >
                   <c.Icon className="h-4 w-4" /> {c.label}
+                  <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                    active ? "bg-white/20" : "bg-white/60"
+                  }`}>{n}</span>
                 </button>
               );
             })}
           </div>
 
+          {/* Threads list */}
           <div className="mt-8 space-y-3">
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
@@ -265,6 +382,8 @@ function ForumPage() {
                 const meta = catMeta(t.categorie);
                 const author = profiles[t.user_id];
                 const liked = likedThreadIds.has(t.id);
+                const nReplies = replyCounts[t.id] ?? 0;
+                const populaire = t.nb_likes + nReplies >= 5;
                 return (
                   <article
                     key={t.id}
@@ -273,10 +392,11 @@ function ForumPage() {
                   >
                     <div className="flex items-start gap-4">
                       <span
-                        className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl"
+                        className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold"
                         style={{ background: meta.bg, color: meta.fg }}
+                        title={author ? `${author.prenom ?? ""} ${author.nom ?? ""}` : ""}
                       >
-                        <meta.Icon className="h-6 w-6" />
+                        {initialsOf(author)}
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -288,6 +408,11 @@ function ForumPage() {
                           {t.est_resolu && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                               <CheckCircle2 className="h-3 w-3" /> Résolu
+                            </span>
+                          )}
+                          {populaire && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
+                              <Flame className="h-3 w-3" /> Populaire
                             </span>
                           )}
                           {t.est_ferme && (
@@ -322,10 +447,7 @@ function ForumPage() {
                             <Eye className="h-3.5 w-3.5" /> {t.nb_vues}
                           </span>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void toggleThreadLike(t);
-                            }}
+                            onClick={(e) => { e.stopPropagation(); void toggleThreadLike(t); }}
                             className={`inline-flex items-center gap-1 transition-colors ${
                               liked ? "text-rose-600" : "hover:text-rose-600"
                             }`}
@@ -333,7 +455,20 @@ function ForumPage() {
                             <Heart className={`h-3.5 w-3.5 ${liked ? "fill-current" : ""}`} />{" "}
                             {t.nb_likes}
                           </button>
+                          <Link
+                            to="/chat"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            Poser à Incub'Youth <ExternalLink className="h-3 w-3" />
+                          </Link>
                         </div>
+                      </div>
+                      <div className="flex flex-col items-center justify-center rounded-xl bg-muted/40 px-3 py-2 text-center">
+                        <span className="text-xl font-bold text-foreground">{nReplies}</span>
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          réponse{nReplies > 1 ? "s" : ""}
+                        </span>
                       </div>
                     </div>
                   </article>
@@ -354,9 +489,7 @@ function ForumPage() {
           onLikeThread={() => toggleThreadLike(activeThread)}
           onBack={() => setOpenThreadId(null)}
           onThreadUpdate={(patch) => {
-            setThreads((arr) =>
-              arr.map((t) => (t.id === activeThread.id ? { ...t, ...patch } : t)),
-            );
+            setThreads((arr) => arr.map((t) => (t.id === activeThread.id ? { ...t, ...patch } : t)));
           }}
           onThreadDelete={() => {
             setThreads((arr) => arr.filter((t) => t.id !== activeThread.id));
@@ -368,23 +501,35 @@ function ForumPage() {
       {openCreate && (
         <CreateThreadModal
           onClose={() => setOpenCreate(false)}
-          onCreated={() => {
-            setOpenCreate(false);
-            void loadThreads();
-          }}
+          onCreated={() => { setOpenCreate(false); void loadThreads(); }}
         />
       )}
     </main>
   );
 }
 
+function StatCard({
+  label, value, Icon, color, bg,
+}: { label: string; value: number; Icon: typeof MessageSquare; color: string; bg: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: bg, color }}>
+          <Icon className="h-5 w-5" />
+        </span>
+        <div>
+          <div className="text-2xl font-bold text-foreground">{value}</div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CreateThreadModal({
   onClose,
   onCreated,
-}: {
-  onClose: () => void;
-  onCreated: () => void;
-}) {
+}: { onClose: () => void; onCreated: () => void }) {
   const { user } = useAuth();
   const [titre, setTitre] = useState("");
   const [contenu, setContenu] = useState("");
@@ -395,11 +540,15 @@ function CreateThreadModal({
     e.preventDefault();
     if (!user) return;
     if (titre.trim().length < 5) {
-      toast.error("Titre trop court");
+      toast.error("Titre trop court (5 caractères min)");
       return;
     }
-    if (contenu.trim().length < 10) {
-      toast.error("Message trop court");
+    if (titre.trim().length > 120) {
+      toast.error("Titre trop long (120 caractères max)");
+      return;
+    }
+    if (contenu.trim().length < 30) {
+      toast.error("Message trop court (30 caractères min)");
       return;
     }
     setSubmitting(true);
@@ -420,10 +569,7 @@ function CreateThreadModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
-      <form
-        onSubmit={submit}
-        className="w-full max-w-2xl rounded-2xl bg-background p-6 shadow-xl"
-      >
+      <form onSubmit={submit} className="w-full max-w-2xl rounded-2xl bg-background p-6 shadow-xl">
         <h2 className="text-xl font-bold text-foreground">Nouvelle discussion</h2>
         <div className="mt-5 space-y-4">
           <div>
@@ -446,23 +592,31 @@ function CreateThreadModal({
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Titre</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium">Titre</label>
+              <span className="text-xs text-muted-foreground">{titre.length}/120</span>
+            </div>
             <input
               value={titre}
-              onChange={(e) => setTitre(e.target.value)}
-              maxLength={200}
+              onChange={(e) => setTitre(e.target.value.slice(0, 120))}
+              maxLength={120}
               className="h-11 w-full rounded-[10px] border border-border bg-background px-3 text-sm outline-none focus:border-primary"
               placeholder="Question ou sujet de discussion..."
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Message</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium">Message</label>
+              <span className={`text-xs ${contenu.trim().length < 30 ? "text-amber-600" : "text-muted-foreground"}`}>
+                {contenu.trim().length}/30 min
+              </span>
+            </div>
             <textarea
               value={contenu}
               onChange={(e) => setContenu(e.target.value)}
               rows={6}
               className="w-full rounded-[10px] border border-border bg-background p-3 text-sm outline-none focus:border-primary"
-              placeholder="Décris ton sujet en détail..."
+              placeholder="Décris ton sujet en détail (minimum 30 caractères)..."
             />
           </div>
         </div>
@@ -514,10 +668,20 @@ function ThreadDetail({
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [reportTarget, setReportTarget] = useState<{ thread_id?: string; reply_id?: string } | null>(
-    null,
-  );
+  const [reportTarget, setReportTarget] = useState<{ thread_id?: string; reply_id?: string } | null>(null);
   const meta = catMeta(thread.categorie);
+  const loadedAuthorIds = useRef(new Set<string>());
+
+  const fetchProfilesForIds = async (ids: string[]) => {
+    const missing = ids.filter((id) => !loadedAuthorIds.current.has(id));
+    if (!missing.length) return;
+    missing.forEach((id) => loadedAuthorIds.current.add(id));
+    const { data: profs } = await supabase
+      .from("profiles").select("id, prenom, nom").in("id", missing);
+    const map: Record<string, Profile> = {};
+    (profs ?? []).forEach((p) => (map[p.id] = p as Profile));
+    setProfiles((prev) => ({ ...prev, ...map }));
+  };
 
   const load = async () => {
     setLoading(true);
@@ -529,32 +693,34 @@ function ThreadDetail({
       .order("created_at", { ascending: true });
     const list = (data ?? []) as Reply[];
     setReplies(list);
-    const ids = Array.from(new Set([thread.user_id, ...list.map((r) => r.user_id)]));
-    const { data: profs } = await supabase
-      .from("profiles")
-      .select("id, prenom, nom")
-      .in("id", ids);
-    const map: Record<string, Profile> = {};
-    (profs ?? []).forEach((p) => (map[p.id] = p as Profile));
-    setProfiles(map);
+    await fetchProfilesForIds([thread.user_id, ...list.map((r) => r.user_id)]);
     if (currentUserId && list.length) {
       const { data: likes } = await db
         .from("forum_likes")
         .select("reply_id")
         .eq("user_id", currentUserId)
-        .in(
-          "reply_id",
-          list.map((r) => r.id),
-        );
-      setLikedReplyIds(
-        new Set(((likes ?? []) as { reply_id: string }[]).map((l) => l.reply_id)),
-      );
+        .in("reply_id", list.map((r) => r.id));
+      setLikedReplyIds(new Set(((likes ?? []) as { reply_id: string }[]).map((l) => l.reply_id)));
     }
     setLoading(false);
   };
 
   useEffect(() => {
     void load();
+    // realtime: nouvelles réponses
+    const ch = supabase
+      .channel(`thread-${thread.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "forum_replies", filter: `thread_id=eq.${thread.id}` },
+        async (payload) => {
+          const r = payload.new as Reply;
+          setReplies((arr) => (arr.some((x) => x.id === r.id) ? arr : [...arr, r]));
+          await fetchProfilesForIds([r.user_id]);
+        },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thread.id]);
 
@@ -562,10 +728,7 @@ function ThreadDetail({
     e.preventDefault();
     if (!currentUserId) return;
     if (content.trim().length < 2) return;
-    if (thread.est_ferme) {
-      toast.error("Discussion fermée");
-      return;
-    }
+    if (thread.est_ferme) { toast.error("Discussion fermée"); return; }
     setSubmitting(true);
     const { error } = await db.from("forum_replies").insert({
       thread_id: thread.id,
@@ -573,12 +736,8 @@ function ThreadDetail({
       contenu: content.trim(),
     });
     setSubmitting(false);
-    if (error) {
-      toast.error("Échec de l'envoi");
-      return;
-    }
+    if (error) { toast.error("Échec de l'envoi"); return; }
     setContent("");
-    void load();
   };
 
   const toggleReplyLike = async (r: Reply) => {
@@ -586,33 +745,19 @@ function ThreadDetail({
     const isLiked = likedReplyIds.has(r.id);
     if (isLiked) {
       await db.from("forum_likes").delete().eq("user_id", currentUserId).eq("reply_id", r.id);
-      setLikedReplyIds((s) => {
-        const n = new Set(s);
-        n.delete(r.id);
-        return n;
-      });
-      await db
-        .from("forum_replies")
-        .update({ nb_likes: Math.max(0, r.nb_likes - 1) })
-        .eq("id", r.id);
-      setReplies((arr) =>
-        arr.map((x) => (x.id === r.id ? { ...x, nb_likes: Math.max(0, x.nb_likes - 1) } : x)),
-      );
+      setLikedReplyIds((s) => { const n = new Set(s); n.delete(r.id); return n; });
+      await db.from("forum_replies").update({ nb_likes: Math.max(0, r.nb_likes - 1) }).eq("id", r.id);
+      setReplies((arr) => arr.map((x) => (x.id === r.id ? { ...x, nb_likes: Math.max(0, x.nb_likes - 1) } : x)));
     } else {
       await db.from("forum_likes").insert({ user_id: currentUserId, reply_id: r.id });
       setLikedReplyIds((s) => new Set(s).add(r.id));
       await db.from("forum_replies").update({ nb_likes: r.nb_likes + 1 }).eq("id", r.id);
-      setReplies((arr) =>
-        arr.map((x) => (x.id === r.id ? { ...x, nb_likes: x.nb_likes + 1 } : x)),
-      );
+      setReplies((arr) => arr.map((x) => (x.id === r.id ? { ...x, nb_likes: x.nb_likes + 1 } : x)));
     }
   };
 
   const markBest = async (r: Reply) => {
-    await db
-      .from("forum_replies")
-      .update({ est_meilleure_reponse: false })
-      .eq("thread_id", thread.id);
+    await db.from("forum_replies").update({ est_meilleure_reponse: false }).eq("thread_id", thread.id);
     await db.from("forum_replies").update({ est_meilleure_reponse: true }).eq("id", r.id);
     await db.from("forum_threads").update({ est_resolu: true }).eq("id", thread.id);
     onThreadUpdate({ est_resolu: true });
@@ -651,13 +796,33 @@ function ThreadDetail({
         <ArrowLeft className="h-4 w-4" /> Retour aux discussions
       </button>
 
+      {/* AI suggestion banner */}
+      <Link
+        to="/chat"
+        className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary-soft to-transparent p-4 transition-colors hover:border-primary/60"
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <Sparkles className="h-5 w-5" />
+          </span>
+          <div>
+            <div className="text-sm font-semibold text-foreground">
+              Demander à Incub'Youth <ExternalLink className="ml-1 inline h-3.5 w-3.5" />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Obtiens une réponse instantanée de notre assistant scout sur ce sujet.
+            </div>
+          </div>
+        </div>
+      </Link>
+
       <article className="mt-4 rounded-2xl border border-border bg-card p-6">
         <div className="flex items-start gap-4">
           <span
-            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl"
+            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold"
             style={{ background: meta.bg, color: meta.fg }}
           >
-            <meta.Icon className="h-6 w-6" />
+            {initialsOf(author)}
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -774,6 +939,9 @@ function ThreadDetail({
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-foreground">
+                      {initialsOf(a)}
+                    </span>
                     <span className="font-medium text-foreground">
                       {a ? `${a.prenom ?? ""} ${a.nom ?? ""}`.trim() || "Membre" : "Membre"}
                     </span>
@@ -790,8 +958,7 @@ function ThreadDetail({
                         isLiked ? "text-rose-600" : "text-muted-foreground hover:text-rose-600"
                       }`}
                     >
-                      <Heart className={`h-3.5 w-3.5 ${isLiked ? "fill-current" : ""}`} />{" "}
-                      {r.nb_likes}
+                      <Heart className={`h-3.5 w-3.5 ${isLiked ? "fill-current" : ""}`} /> {r.nb_likes}
                     </button>
                     <button
                       onClick={() => setReportTarget({ reply_id: r.id })}
@@ -883,10 +1050,7 @@ function ReportModal({
       raison: raison.trim(),
     });
     setSubmitting(false);
-    if (error) {
-      toast.error("Erreur lors du signalement");
-      return;
-    }
+    if (error) { toast.error("Erreur lors du signalement"); return; }
     toast.success("Signalement envoyé. Merci !");
     onClose();
   };
