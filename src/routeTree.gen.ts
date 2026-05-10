@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForumRouteImport } from './routes/forum'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as EspaceRouteImport } from './routes/espace'
 import { Route as ConditionsUtilisationRouteImport } from './routes/conditions-utilisation'
@@ -39,6 +40,11 @@ const RegisterRoute = RegisterRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForumRoute = ForumRouteImport.update({
+  id: '/forum',
+  path: '/forum',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -116,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/forum': typeof ForumRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/forum': typeof ForumRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/forum': typeof ForumRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/conditions-utilisation'
     | '/espace'
     | '/forgot-password'
+    | '/forum'
     | '/login'
     | '/register'
     | '/reset-password'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/conditions-utilisation'
     | '/espace'
     | '/forgot-password'
+    | '/forum'
     | '/login'
     | '/register'
     | '/reset-password'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/conditions-utilisation'
     | '/espace'
     | '/forgot-password'
+    | '/forum'
     | '/login'
     | '/register'
     | '/reset-password'
@@ -226,6 +238,7 @@ export interface RootRouteChildren {
   ConditionsUtilisationRoute: typeof ConditionsUtilisationRoute
   EspaceRoute: typeof EspaceRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  ForumRoute: typeof ForumRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forum': {
+      id: '/forum'
+      path: '/forum'
+      fullPath: '/forum'
+      preLoaderRoute: typeof ForumRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -383,6 +403,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConditionsUtilisationRoute: ConditionsUtilisationRoute,
   EspaceRoute: EspaceRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  ForumRoute: ForumRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
@@ -390,3 +411,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
