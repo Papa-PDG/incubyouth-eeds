@@ -14,6 +14,8 @@ import {
   CalendarPlus,
   CheckCircle2,
   AlertCircle,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -112,6 +114,7 @@ function CalendrierPage() {
   const [activeFilter, setActiveFilter] = useState<"all" | EventType>("all");
   const [selectedEvent, setSelectedEvent] = useState<Evt | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
+  const [editEvent, setEditEvent] = useState<Evt | null>(null);
   const [inscriptions, setInscriptions] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
 
@@ -173,6 +176,15 @@ function CalendrierPage() {
       setSelectedEvent((p) => p && p.id === evt.id ? { ...p, nb_inscrits: p.nb_inscrits + 1 } : p);
       toast.success(statut === "liste_attente" ? "Ajouté en liste d'attente" : "Inscription confirmée !");
     }
+  };
+
+  const handleDelete = async (evt: Evt) => {
+    if (!confirm(`Supprimer l'événement "${evt.titre}" ? Cette action est irréversible.`)) return;
+    const { error } = await db.from("evenements").delete().eq("id", evt.id);
+    if (error) { toast.error(error.message); return; }
+    setEvenements((p) => p.filter((e) => e.id !== evt.id));
+    setSelectedEvent(null);
+    toast.success("Événement supprimé");
   };
 
   return (
@@ -276,20 +288,39 @@ function CalendrierPage() {
         <EventDetailModal
           evt={selectedEvent}
           isInscrit={inscriptions.has(selectedEvent.id)}
+          isAdmin={isAdmin}
           onClose={() => setSelectedEvent(null)}
           onInscription={() => handleInscription(selectedEvent)}
           onAskAi={() => navigate({ to: "/chat" })}
+          onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); }}
+          onDelete={() => handleDelete(selectedEvent)}
         />
       )}
 
       {showNewModal && isAdmin && user && (
-        <NewEventModal
+        <EventFormModal
           userId={user.id}
           onClose={() => setShowNewModal(false)}
-          onCreated={(evt) => {
-            setEvenements((p) => [...p, evt].sort((a, b) => a.date_debut.localeCompare(b.date_debut)));
+          onSaved={(evt, isNew) => {
+            setEvenements((p) => {
+              const next = isNew ? [...p, evt] : p.map((e) => e.id === evt.id ? evt : e);
+              return next.sort((a, b) => a.date_debut.localeCompare(b.date_debut));
+            });
             setShowNewModal(false);
             toast.success("Événement créé et visible par tous les scouts !");
+          }}
+        />
+      )}
+
+      {editEvent && isAdmin && user && (
+        <EventFormModal
+          userId={user.id}
+          existing={editEvent}
+          onClose={() => setEditEvent(null)}
+          onSaved={(evt) => {
+            setEvenements((p) => p.map((e) => e.id === evt.id ? evt : e).sort((a, b) => a.date_debut.localeCompare(b.date_debut)));
+            setEditEvent(null);
+            toast.success("Événement mis à jour");
           }}
         />
       )}
@@ -488,8 +519,8 @@ function AgendaView({ events, onSelect }: { events: Evt[]; onSelect: (e: Evt) =>
 }
 
 /* ----------- Detail modal ----------- */
-function EventDetailModal({ evt, isInscrit, onClose, onInscription, onAskAi }: {
-  evt: Evt; isInscrit: boolean; onClose: () => void; onInscription: () => void; onAskAi: () => void;
+function EventDetailModal({ evt, isInscrit, isAdmin, onClose, onInscription, onAskAi, onEdit, onDelete }: {
+  evt: Evt; isInscrit: boolean; isAdmin: boolean; onClose: () => void; onInscription: () => void; onAskAi: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   const s = TYPE_STYLES[evt.type];
   const multi = evt.date_debut !== evt.date_fin;
@@ -526,6 +557,16 @@ function EventDetailModal({ evt, isInscrit, onClose, onInscription, onAskAi }: {
           </div>
 
           <div className="mt-6 grid gap-2">
+            {isAdmin && (
+              <div className="flex gap-2">
+                <button onClick={onEdit} className="flex-1 inline-flex items-center justify-center gap-2 h-10 rounded-md border border-border text-sm font-medium hover:bg-muted">
+                  <Pencil className="h-4 w-4" /> Modifier
+                </button>
+                <button onClick={onDelete} className="flex-1 inline-flex items-center justify-center gap-2 h-10 rounded-md border border-destructive/40 text-destructive text-sm font-medium hover:bg-destructive/10">
+                  <Trash2 className="h-4 w-4" /> Supprimer
+                </button>
+              </div>
+            )}
             <button onClick={onAskAi} className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border border-[#622599] text-[#622599] text-sm font-medium hover:bg-[#FAF5FF]">
               <Sparkles className="h-4 w-4" /> Demander à Incub'Youth <ExternalLink className="h-3.5 w-3.5" />
             </button>
@@ -548,18 +589,19 @@ function EventDetailModal({ evt, isInscrit, onClose, onInscription, onAskAi }: {
   );
 }
 
-/* ----------- New event modal ----------- */
-function NewEventModal({ userId, onClose, onCreated }: { userId: string; onClose: () => void; onCreated: (e: Evt) => void }) {
-  const [titre, setTitre] = useState("");
-  const [type, setType] = useState<EventType>("camp");
-  const [dateDebut, setDateDebut] = useState("");
-  const [dateFin, setDateFin] = useState("");
-  const [lieu, setLieu] = useState("");
-  const [region, setRegion] = useState("National");
-  const [description, setDescription] = useState("");
-  const [responsable, setResponsable] = useState("");
-  const [nbPlaces, setNbPlaces] = useState(0);
-  const [rappel, setRappel] = useState(true);
+/* ----------- Event form modal (create + edit) ----------- */
+function EventFormModal({ userId, existing, onClose, onSaved }: { userId: string; existing?: Evt; onClose: () => void; onSaved: (e: Evt, isNew: boolean) => void }) {
+  const isEdit = !!existing;
+  const [titre, setTitre] = useState(existing?.titre ?? "");
+  const [type, setType] = useState<EventType>(existing?.type ?? "camp");
+  const [dateDebut, setDateDebut] = useState(existing?.date_debut ?? "");
+  const [dateFin, setDateFin] = useState(existing?.date_fin ?? "");
+  const [lieu, setLieu] = useState(existing?.lieu ?? "");
+  const [region, setRegion] = useState(existing?.region ?? "National");
+  const [description, setDescription] = useState(existing?.description ?? "");
+  const [responsable, setResponsable] = useState(existing?.responsable ?? "");
+  const [nbPlaces, setNbPlaces] = useState(existing?.nb_places ?? 0);
+  const [rappel, setRappel] = useState(existing?.rappel_email ?? true);
   const [addToGcal, setAddToGcal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -573,14 +615,16 @@ function NewEventModal({ userId, onClose, onCreated }: { userId: string; onClose
     const payload = {
       titre, type, date_debut: dateDebut, date_fin: dateFin,
       lieu: lieu || null, region, description, responsable: responsable || null,
-      nb_places: nbPlaces, rappel_email: rappel, visible: true, created_by: userId,
+      nb_places: nbPlaces, rappel_email: rappel, visible: true,
     };
-    const { data, error } = await db.from("evenements").insert(payload as never).select().single();
+    const { data, error } = isEdit
+      ? await db.from("evenements").update(payload as never).eq("id", existing!.id).select().single()
+      : await db.from("evenements").insert({ ...payload, created_by: userId } as never).select().single();
     setSubmitting(false);
     if (error || !data) { toast.error(error?.message ?? "Erreur"); return; }
-    const created = data as Evt;
-    onCreated(created);
-    if (addToGcal) window.open(buildGCalUrl(created), "_blank");
+    const saved = data as Evt;
+    onSaved(saved, !isEdit);
+    if (!isEdit && addToGcal) window.open(buildGCalUrl(saved), "_blank");
   };
 
   return (
@@ -588,7 +632,7 @@ function NewEventModal({ userId, onClose, onCreated }: { userId: string; onClose
       <div className="bg-background rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <form onSubmit={submit} className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold">Nouvel événement</h2>
+            <h2 className="text-lg font-bold">{isEdit ? "Modifier l'événement" : "Nouvel événement"}</h2>
             <button type="button" onClick={onClose} className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-muted"><X className="h-4 w-4" /></button>
           </div>
 
@@ -627,7 +671,7 @@ function NewEventModal({ userId, onClose, onCreated }: { userId: string; onClose
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="flex-1 h-10 rounded-md border border-border text-sm">Annuler</button>
             <button type="submit" disabled={submitting} className="flex-1 h-10 rounded-md bg-[#622599] text-white text-sm font-medium hover:bg-[#522085] disabled:opacity-50">
-              {submitting ? "Création..." : "Créer l'événement"}
+              {submitting ? "Enregistrement..." : isEdit ? "Enregistrer" : "Créer l'événement"}
             </button>
           </div>
         </form>
