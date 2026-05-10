@@ -180,6 +180,29 @@ function ForumPage() {
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState<number>(0);
   const [, forceTick] = useState(0);
+  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
+
+  // Présence temps réel : tous les utilisateurs ouverts sur /forum se voient en direct
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase.channel("forum-presence", {
+      config: { presence: { key: user.id } },
+    });
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState() as Record<string, unknown[]>;
+        setOnlineIds(new Set(Object.keys(state)));
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ online_at: new Date().toISOString() });
+        }
+      });
+    return () => {
+      void channel.untrack();
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   // Re-render every 30s pour rafraîchir les libellés "vu il y a X"
   useEffect(() => {
@@ -373,6 +396,7 @@ function ForumPage() {
   const activeThread = threads.find((t) => t.id === openThreadId) ?? null;
 
   return (
+    <OnlineContext.Provider value={onlineIds}>
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       {!activeThread && (
         <>
