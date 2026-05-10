@@ -105,7 +105,7 @@ function LoginPage() {
               <div className="space-y-3 pt-4">
                 {[
                   { icon: Zap, text: "Réponses instantanées 24h/24" },
-                  { icon: Sparkles, text: "Préparation de camps assistée" },
+                  { icon: Sparkles, text: "Réponses adaptées à tes thèmes" },
                   { icon: Shield, text: "Sécurisé et confidentiel" },
                 ].map(({ icon: Icon, text }) => (
                   <div key={text} className="flex items-center gap-3 rounded-xl bg-white/10 p-3 backdrop-blur">
