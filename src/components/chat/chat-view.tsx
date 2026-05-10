@@ -191,6 +191,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
 
     await streamChat({
       messages: history,
+      userName: profile?.prenom ?? undefined,
       onDelta: (chunk) => {
         assistantText += chunk;
         setMessages((m) => {
