@@ -5,7 +5,6 @@ import { fr } from "date-fns/locale";
 import {
   MessageSquare, Trash2, Pencil, ShieldAlert, BadgeCheck,
   Compass, Search, Scale, Leaf, HeartPulse, Award, Lock,
-  Tent, FileDown,
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/route-guards";
 import { Button } from "@/components/ui/button";
@@ -29,7 +28,6 @@ function CountUp({ target }: { target: number }) {
   const ref = useCountUp(target);
   return <span ref={ref as never}>0</span>;
 }
-import { exportCampPdf, type CampPlan } from "@/lib/camp-pdf";
 
 export const Route = createFileRoute("/espace")({
   head: () => ({ meta: [{ title: "Mon Espace — Incub'Youth" }] }),
@@ -62,17 +60,6 @@ type Profile = {
   created_at: string;
 };
 type ConvRow = { id: string; titre: string; updated_at: string };
-type CampRow = {
-  id: string;
-  nom_camp: string;
-  duree: number;
-  theme: string;
-  effectif: string;
-  age: string;
-  region: string;
-  plan_json: CampPlan;
-  created_at: string;
-};
 
 function EspacePage() {
   const { user, signOut, refreshProfile } = useAuth();
@@ -81,7 +68,6 @@ function EspacePage() {
   const [userMsgs, setUserMsgs] = useState<{ content: string; created_at: string }[]>([]);
   const [convs, setConvs] = useState<ConvRow[]>([]);
   const [convMsgCounts, setConvMsgCounts] = useState<Record<string, number>>({});
-  const [camps, setCamps] = useState<CampRow[]>([]);
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const editRef = useRef<HTMLDivElement | null>(null);
