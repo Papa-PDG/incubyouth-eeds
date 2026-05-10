@@ -70,19 +70,26 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     setMessages([]);
     setTitre("Nouvelle conversation");
     (async () => {
-      const { data: conv } = await supabase
-        .from("conversations")
-        .select("titre")
-        .eq("id", conversationId)
-        .maybeSingle();
-      if (conv) setTitre(conv.titre);
-      const { data } = await supabase
-        .from("messages")
-        .select("id, role, content, created_at, feedback")
-        .eq("conversation_id", conversationId)
-        .order("created_at")
-        .limit(100);
-      setMessages((data ?? []) as Msg[]);
+      try {
+        const { data: conv, error: convErr } = await supabase
+          .from("conversations")
+          .select("titre")
+          .eq("id", conversationId)
+          .maybeSingle();
+        if (convErr) throw convErr;
+        if (conv) setTitre(conv.titre);
+        const { data, error: msgErr } = await supabase
+          .from("messages")
+          .select("id, role, content, created_at, feedback")
+          .eq("conversation_id", conversationId)
+          .order("created_at")
+          .limit(100);
+        if (msgErr) throw msgErr;
+        setMessages((data ?? []) as Msg[]);
+      } catch (e) {
+        console.error("Chargement conversation:", e);
+        toast.error("Impossible de charger cette discussion.");
+      }
     })();
   }, [conversationId]);
 
@@ -93,7 +100,13 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
         .select("prenom")
         .eq("id", user.id)
         .maybeSingle()
-        .then(({ data }) => setProfile(data));
+        .then(({ data, error }) => {
+          if (error) {
+            console.error("Chargement profil:", error);
+            return;
+          }
+          setProfile(data);
+        });
     }
   }, [user?.id]);
 
@@ -110,7 +123,12 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   }, [input]);
 
   const send = async (text: string) => {
-    if (streaming || !user) return;
+    if (streaming) return;
+    if (!user) {
+      toast.error("Tu dois être connecté pour discuter.");
+      navigate({ to: "/login" });
+      return;
+    }
     const safe = sanitizeUserText(text);
     if (!safe) {
       toast.error("Message vide ou invalide.");
@@ -125,13 +143,23 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     // Create conversation if first message
     if (!convId) {
       const titreAuto = text.split(/\s+/).slice(0, 5).join(" ").slice(0, 60);
-      const { data, error } = await supabase
-        .from("conversations")
-        .insert({ user_id: user.id, titre: titreAuto })
-        .select("id, titre")
-        .single();
-      if (error || !data) {
-        toast.error("Impossible de créer la conversation");
+      let data: { id: string; titre: string } | null = null;
+      try {
+        const res = await supabase
+          .from("conversations")
+          .insert({ user_id: user.id, titre: titreAuto })
+          .select("id, titre")
+          .single();
+        if (res.error) throw res.error;
+        data = res.data;
+      } catch (e) {
+        console.error("Création conversation:", e);
+        toast.error("Impossible de créer la conversation. Réessaie.");
+        setStreaming(false);
+        return;
+      }
+      if (!data) {
+        toast.error("Impossible de créer la conversation. Réessaie.");
         setStreaming(false);
         return;
       }
@@ -145,11 +173,17 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     setMessages((m) => [...m, userMsg]);
 
     // Persist user message
-    await supabase.from("messages").insert({
-      conversation_id: convId,
-      role: "user",
-      content: text,
-    });
+    try {
+      const { error: insErr } = await supabase.from("messages").insert({
+        conversation_id: convId,
+        role: "user",
+        content: text,
+      });
+      if (insErr) throw insErr;
+    } catch (e) {
+      console.error("Enregistrement du message:", e);
+      toast.error("Ton message n'a pas pu être enregistré, mais la réponse continue.");
+    }
 
     const history = [...messages, userMsg].map((m) => ({ role: m.role, content: m.content }));
     let assistantText = "";
@@ -172,29 +206,37 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
           copy[copy.length - 1] = { role: "assistant", content: `__ERROR__${msg}` };
           return copy;
         });
+        setStreaming(false);
       },
       onDone: async () => {
         if (assistantText) {
-          const { data } = await supabase
-            .from("messages")
-            .insert({
-              conversation_id: convId!,
-              role: "assistant",
-              content: assistantText,
-            })
-            .select("id")
-            .single();
-          if (data) {
-            setMessages((m) => {
-              const copy = [...m];
-              copy[copy.length - 1] = { ...copy[copy.length - 1], id: data.id };
-              return copy;
-            });
+          try {
+            const { data, error: insErr } = await supabase
+              .from("messages")
+              .insert({
+                conversation_id: convId!,
+                role: "assistant",
+                content: assistantText,
+              })
+              .select("id")
+              .single();
+            if (insErr) throw insErr;
+            if (data) {
+              setMessages((m) => {
+                const copy = [...m];
+                copy[copy.length - 1] = { ...copy[copy.length - 1], id: data.id };
+                return copy;
+              });
+            }
+            const { error: updErr } = await supabase
+              .from("conversations")
+              .update({ updated_at: new Date().toISOString() })
+              .eq("id", convId!);
+            if (updErr) throw updErr;
+          } catch (e) {
+            console.error("Sauvegarde de la réponse:", e);
+            toast.warning("La réponse n'a pas pu être archivée.");
           }
-          await supabase
-            .from("conversations")
-            .update({ updated_at: new Date().toISOString() })
-            .eq("id", convId!);
         }
         setSidebarKey((k) => k + 1);
         setStreaming(false);
@@ -218,8 +260,17 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     const msg = messages[idx];
     if (!msg.id) return;
     const newVal = msg.feedback === value ? null : value;
-    await supabase.from("messages").update({ feedback: newVal }).eq("id", msg.id);
-    setMessages((m) => m.map((x, i) => (i === idx ? { ...x, feedback: newVal } : x)));
+    try {
+      const { error } = await supabase
+        .from("messages")
+        .update({ feedback: newVal })
+        .eq("id", msg.id);
+      if (error) throw error;
+      setMessages((m) => m.map((x, i) => (i === idx ? { ...x, feedback: newVal } : x)));
+    } catch (e) {
+      console.error("Feedback:", e);
+      toast.error("Impossible d'enregistrer ton avis.");
+    }
   }, [messages]);
 
   const copyText = useCallback((t: string) => {
