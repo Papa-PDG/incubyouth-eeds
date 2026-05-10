@@ -23,6 +23,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as ForumIdRouteImport } from './routes/forum.$id'
 import { Route as ChatConversationIdRouteImport } from './routes/chat.$conversationId'
 import { Route as AdminUtilisateursRouteImport } from './routes/admin.utilisateurs'
 import { Route as AdminForumRouteImport } from './routes/admin.forum'
@@ -99,6 +100,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const ForumIdRoute = ForumIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ForumRoute,
+} as any)
 const ChatConversationIdRoute = ChatConversationIdRouteImport.update({
   id: '/$conversationId',
   path: '/$conversationId',
@@ -134,7 +140,7 @@ export interface FileRoutesByFullPath {
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/forum': typeof ForumRoute
+  '/forum': typeof ForumRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/admin/forum': typeof AdminForumRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
+  '/forum/$id': typeof ForumIdRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
 }
@@ -153,7 +160,7 @@ export interface FileRoutesByTo {
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/forum': typeof ForumRoute
+  '/forum': typeof ForumRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/admin/forum': typeof AdminForumRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
+  '/forum/$id': typeof ForumIdRoute
   '/admin': typeof AdminIndexRoute
   '/chat': typeof ChatIndexRoute
 }
@@ -175,7 +183,7 @@ export interface FileRoutesById {
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/forum': typeof ForumRoute
+  '/forum': typeof ForumRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/admin/forum': typeof AdminForumRoute
   '/admin/utilisateurs': typeof AdminUtilisateursRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
+  '/forum/$id': typeof ForumIdRoute
   '/admin/': typeof AdminIndexRoute
   '/chat/': typeof ChatIndexRoute
 }
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/admin/forum'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
+    | '/forum/$id'
     | '/admin/'
     | '/chat/'
   fileRoutesByTo: FileRoutesByTo
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/admin/forum'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
+    | '/forum/$id'
     | '/admin'
     | '/chat'
   id:
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/admin/forum'
     | '/admin/utilisateurs'
     | '/chat/$conversationId'
+    | '/forum/$id'
     | '/admin/'
     | '/chat/'
   fileRoutesById: FileRoutesById
@@ -260,7 +272,7 @@ export interface RootRouteChildren {
   ConditionsUtilisationRoute: typeof ConditionsUtilisationRoute
   EspaceRoute: typeof EspaceRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
-  ForumRoute: typeof ForumRoute
+  ForumRoute: typeof ForumRouteWithChildren
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -366,6 +378,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/forum/$id': {
+      id: '/forum/$id'
+      path: '/$id'
+      fullPath: '/forum/$id'
+      preLoaderRoute: typeof ForumIdRouteImport
+      parentRoute: typeof ForumRoute
+    }
     '/chat/$conversationId': {
       id: '/chat/$conversationId'
       path: '/$conversationId'
@@ -434,6 +453,16 @@ const ChatRouteChildren: ChatRouteChildren = {
 
 const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
+interface ForumRouteChildren {
+  ForumIdRoute: typeof ForumIdRoute
+}
+
+const ForumRouteChildren: ForumRouteChildren = {
+  ForumIdRoute: ForumIdRoute,
+}
+
+const ForumRouteWithChildren = ForumRoute._addFileChildren(ForumRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -443,7 +472,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConditionsUtilisationRoute: ConditionsUtilisationRoute,
   EspaceRoute: EspaceRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
-  ForumRoute: ForumRoute,
+  ForumRoute: ForumRouteWithChildren,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
