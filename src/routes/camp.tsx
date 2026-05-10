@@ -17,6 +17,7 @@ import {
   ArrowRight,
   History,
   Trash2,
+  FileDown,
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/route-guards";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { exportCampPdf } from "@/lib/camp-pdf";
 
 export const Route = createFileRoute("/camp")({
   head: () => ({
@@ -414,6 +416,26 @@ function CampPage() {
                 >
                   <Save className="mr-2 h-4 w-4" /> Sauvegarder ce plan
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    exportCampPdf(
+                      {
+                        nomCamp: form.nomCamp,
+                        duree: form.duree,
+                        theme: form.theme,
+                        effectif: form.effectif,
+                        age: form.age,
+                        region: form.region,
+                      },
+                      result,
+                      "all",
+                    )
+                  }
+                  className="border-[#622599] text-[#622599] hover:bg-[#F3E8FF] hover:text-[#622599]"
+                >
+                  <FileDown className="mr-2 h-4 w-4" /> Exporter en PDF
+                </Button>
               </div>
               <p className="mt-4 italic text-muted-foreground">{result.resume}</p>
 
@@ -463,6 +485,29 @@ function CampPage() {
               </div>
 
               <div className="p-6 sm:p-8">
+                <div className="mb-4 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      exportCampPdf(
+                        {
+                          nomCamp: form.nomCamp,
+                          duree: form.duree,
+                          theme: form.theme,
+                          effectif: form.effectif,
+                          age: form.age,
+                          region: form.region,
+                        },
+                        result,
+                        activeTab,
+                      )
+                    }
+                    className="border-[#622599] text-[#622599] hover:bg-[#F3E8FF] hover:text-[#622599]"
+                  >
+                    <FileDown className="mr-2 h-3.5 w-3.5" /> Exporter cette section en PDF
+                  </Button>
+                </div>
                 {activeTab === "materiel" && (
                   <MaterielTab
                     materiel={result.materiel}
@@ -566,6 +611,28 @@ function CampPage() {
                       className="flex-1 bg-[#622599] hover:bg-[#4f1d7a]"
                     >
                       Recharger
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        exportCampPdf(
+                          {
+                            nomCamp: c.nom_camp,
+                            duree: c.duree,
+                            theme: c.theme,
+                            effectif: c.effectif,
+                            age: c.age,
+                            region: c.region,
+                          },
+                          c.plan_json,
+                          "all",
+                        )
+                      }
+                      aria-label="Exporter en PDF"
+                      className="border-[#622599] text-[#622599] hover:bg-[#F3E8FF] hover:text-[#622599]"
+                    >
+                      <FileDown className="h-4 w-4" />
                     </Button>
                     <Button
                       size="sm"
