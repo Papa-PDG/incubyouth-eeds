@@ -808,6 +808,7 @@ function ThreadDetail({
   const [reportTarget, setReportTarget] = useState<{ thread_id?: string; reply_id?: string } | null>(null);
   const meta = catMeta(thread.categorie);
   const loadedAuthorIds = useRef(new Set<string>());
+  const online = useOnline();
 
   const fetchProfilesForIds = async (ids: string[]) => {
     const missing = ids.filter((id) => !loadedAuthorIds.current.has(id));
@@ -994,7 +995,7 @@ function ThreadDetail({
               {initialsOf(author)}
             </span>
             <span className="absolute -bottom-0.5 -right-0.5">
-              <PresenceDot online={presenceStatus(author?.last_seen_at).online} />
+              <PresenceDot online={presenceStatus(author?.last_seen_at, author ? online.has(author.id) : false).online} />
             </span>
           </div>
           <div className="min-w-0 flex-1">
@@ -1031,13 +1032,13 @@ function ThreadDetail({
                 {author && (
                   <span
                     className={`ml-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                      presenceStatus(author.last_seen_at).online
+                      presenceStatus(author.last_seen_at, online.has(author.id)).online
                         ? "bg-emerald-50 text-emerald-700"
                         : "bg-slate-100 text-slate-500"
                     }`}
                   >
-                    <PresenceDot online={presenceStatus(author.last_seen_at).online} className="!ring-0 !h-1.5 !w-1.5" />
-                    {presenceStatus(author.last_seen_at).label}
+                    <PresenceDot online={presenceStatus(author.last_seen_at, online.has(author.id)).online} className="!ring-0 !h-1.5 !w-1.5" />
+                    {presenceStatus(author.last_seen_at, online.has(author.id)).label}
                   </span>
                 )}
               </span>
@@ -1129,7 +1130,7 @@ function ThreadDetail({
                         {initialsOf(a)}
                       </span>
                       <span className="absolute -bottom-0.5 -right-0.5">
-                        <PresenceDot online={presenceStatus(a?.last_seen_at).online} className="!h-2 !w-2" />
+                        <PresenceDot online={presenceStatus(a?.last_seen_at, a ? online.has(a.id) : false).online} className="!h-2 !w-2" />
                       </span>
                     </span>
                     <span className="font-medium text-foreground">
@@ -1140,8 +1141,8 @@ function ThreadDetail({
                     {a && (
                       <>
                         <span>•</span>
-                        <span className={presenceStatus(a.last_seen_at).online ? "text-emerald-600" : ""}>
-                          {presenceStatus(a.last_seen_at).label}
+                        <span className={presenceStatus(a.last_seen_at, online.has(a.id)).online ? "text-emerald-600" : ""}>
+                          {presenceStatus(a.last_seen_at, online.has(a.id)).label}
                         </span>
                       </>
                     )}
