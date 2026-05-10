@@ -104,7 +104,7 @@ function buildGCalUrl(evt: Evt) {
 }
 
 function CalendrierPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [evenements, setEvenements] = useState<Evt[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -231,7 +231,7 @@ function CalendrierPage() {
                 >{l}</button>
               ))}
             </div>
-            {user && (
+            {isAdmin && (
               <button
                 onClick={() => setShowNewModal(true)}
                 className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-[#622599] text-white text-sm font-medium hover:bg-[#522085]"
@@ -282,7 +282,7 @@ function CalendrierPage() {
         />
       )}
 
-      {showNewModal && user && (
+      {showNewModal && isAdmin && user && (
         <NewEventModal
           userId={user.id}
           onClose={() => setShowNewModal(false)}
