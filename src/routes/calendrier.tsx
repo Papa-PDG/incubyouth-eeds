@@ -121,7 +121,8 @@ function CalendrierPage() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const evtsP = db.from("evenements").select("*").eq("visible", true).order("date_debut");
+      const baseQ = db.from("evenements").select("*").order("date_debut");
+      const evtsP = isAdmin ? baseQ : baseQ.eq("visible", true);
       const inscrP = user
         ? db.from("evenements_inscriptions").select("evenement_id").eq("user_id", user.id)
         : Promise.resolve({ data: [] as { evenement_id: string }[] });
@@ -133,7 +134,7 @@ function CalendrierPage() {
     };
     void load();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, isAdmin]);
 
   const filtered = useMemo(
     () => (activeFilter === "all" ? evenements : evenements.filter((e) => e.type === activeFilter)),
@@ -602,6 +603,7 @@ function EventFormModal({ userId, existing, onClose, onSaved }: { userId: string
   const [responsable, setResponsable] = useState(existing?.responsable ?? "");
   const [nbPlaces, setNbPlaces] = useState(existing?.nb_places ?? 0);
   const [rappel, setRappel] = useState(existing?.rappel_email ?? true);
+  const [visible, setVisible] = useState(existing?.visible ?? true);
   const [addToGcal, setAddToGcal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -615,7 +617,7 @@ function EventFormModal({ userId, existing, onClose, onSaved }: { userId: string
     const payload = {
       titre, type, date_debut: dateDebut, date_fin: dateFin,
       lieu: lieu || null, region, description, responsable: responsable || null,
-      nb_places: nbPlaces, rappel_email: rappel, visible: true,
+      nb_places: nbPlaces, rappel_email: rappel, visible,
     };
     const { data, error } = isEdit
       ? await db.from("evenements").update(payload as never).eq("id", existing!.id).select().single()
@@ -663,6 +665,21 @@ function EventFormModal({ userId, existing, onClose, onSaved }: { userId: string
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={rappel} onChange={(e) => setRappel(e.target.checked)} /> Envoyer un rappel email 7 jours avant
+          </label>
+          <label className="flex items-center justify-between gap-2 text-sm rounded-md border border-border px-3 py-2">
+            <span className="flex flex-col">
+              <span className="font-medium">{visible ? "Visible publiquement" : "Masqué (brouillon)"}</span>
+              <span className="text-xs text-muted-foreground">{visible ? "L'événement apparaît dans le calendrier de tous les scouts." : "Seuls les administrateurs le voient."}</span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={visible}
+              onClick={() => setVisible((v) => !v)}
+              className={`relative h-6 w-11 rounded-full transition-colors ${visible ? "bg-[#622599]" : "bg-muted-foreground/30"}`}
+            >
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${visible ? "translate-x-5" : "translate-x-0.5"}`} />
+            </button>
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={addToGcal} onChange={(e) => setAddToGcal(e.target.checked)} /> Ajouter à mon Google Calendar après création
