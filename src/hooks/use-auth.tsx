@@ -56,6 +56,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Heartbeat de présence : marque l'utilisateur comme actif toutes les 60s
+  useEffect(() => {
+    if (!session?.user) return;
+    const ping = () => {
+      supabase.rpc("touch_last_seen" as never).then(() => {});
+    };
+    ping();
+    const id = window.setInterval(ping, 60_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") ping();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [session?.user?.id]);
+
   async function fetchRole(userId: string) {
     const { data } = await supabase
       .from("user_roles")

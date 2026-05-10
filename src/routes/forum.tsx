@@ -76,7 +76,37 @@ type Reply = {
   created_at: string;
 };
 
-type Profile = { id: string; prenom: string | null; nom: string | null };
+type Profile = {
+  id: string;
+  prenom: string | null;
+  nom: string | null;
+  last_seen_at?: string | null;
+};
+
+const ONLINE_WINDOW_MS = 2 * 60 * 1000; // < 2 min => en ligne
+
+function presenceStatus(lastSeen?: string | null): {
+  online: boolean;
+  label: string;
+} {
+  if (!lastSeen) return { online: false, label: "Hors ligne" };
+  const ms = Date.now() - new Date(lastSeen).getTime();
+  if (ms < ONLINE_WINDOW_MS) return { online: true, label: "En ligne" };
+  if (ms < 3600_000) return { online: false, label: `Vu il y a ${Math.floor(ms / 60000)} min` };
+  if (ms < 86400_000) return { online: false, label: `Vu il y a ${Math.floor(ms / 3600_000)} h` };
+  return { online: false, label: `Vu il y a ${Math.floor(ms / 86400_000)} j` };
+}
+
+function PresenceDot({ online, className = "" }: { online: boolean; className?: string }) {
+  return (
+    <span
+      className={`inline-block h-2.5 w-2.5 rounded-full ring-2 ring-card ${
+        online ? "bg-emerald-500" : "bg-slate-300"
+      } ${className}`}
+      aria-hidden
+    />
+  );
+}
 
 const CATEGORIES = [
   { key: "all", label: "Tous", Icon: Sparkles, bg: "#F3E8FF", fg: "#622599" },
@@ -131,6 +161,13 @@ function ForumPage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState<number>(0);
+  const [, forceTick] = useState(0);
+
+  // Re-render every 30s pour rafraîchir les libellés "vu il y a X"
+  useEffect(() => {
+    const id = window.setInterval(() => forceTick((n) => n + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   // mark visit
   useEffect(() => {
@@ -172,12 +209,11 @@ function ForumPage() {
 
     const ids = Array.from(new Set(list.map((t) => t.user_id)));
     if (ids.length) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id, prenom, nom")
-        .in("id", ids);
+      const { data: profs } = await supabase.rpc("get_public_profiles" as never, {
+        _ids: ids,
+      } as never);
       const map: Record<string, Profile> = {};
-      (profs ?? []).forEach((p) => (map[p.id] = p as Profile));
+      ((profs ?? []) as Profile[]).forEach((p) => (map[p.id] = p));
       setProfiles(map);
     }
     if (user) {
@@ -259,8 +295,11 @@ function ForumPage() {
   const totals = useMemo(() => {
     const totalReplies = Object.values(replyCounts).reduce((a, b) => a + b, 0);
     const resolus = threads.filter((t) => t.est_resolu).length;
-    return { threads: threads.length, replies: totalReplies, resolus };
-  }, [threads, replyCounts]);
+    const onlineNow = Object.values(profiles).filter((p) =>
+      presenceStatus(p.last_seen_at).online,
+    ).length;
+    return { threads: threads.length, replies: totalReplies, resolus, onlineNow };
+  }, [threads, replyCounts, profiles]);
 
   const catCounts = useMemo(() => {
     const m: Record<string, number> = { all: threads.length };
@@ -337,10 +376,11 @@ function ForumPage() {
             </button>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
             <StatCard label="Discussions" value={totals.threads} Icon={MessageSquare} color="#622599" bg="#F3E8FF" />
             <StatCard label="Réponses" value={totals.replies} Icon={Send} color="#0C447C" bg="#E6F1FB" />
             <StatCard label="Membres" value={memberCount} Icon={Users} color="#27500A" bg="#EAF3DE" />
+            <StatCard label="En ligne" value={totals.onlineNow} Icon={Users} color="#047857" bg="#D1FAE5" pulse />
             <StatCard label="Résolus" value={totals.resolus} Icon={CheckCircle2} color="#085041" bg="#E1F5EE" />
           </div>
 
@@ -425,13 +465,18 @@ function ForumPage() {
                     onClick={() => openThread(t)}
                   >
                     <div className="flex items-start gap-4">
-                      <span
-                        className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-                        style={{ background: meta.bg, color: meta.fg }}
-                        title={author ? `${author.prenom ?? ""} ${author.nom ?? ""}` : ""}
-                      >
-                        {initialsOf(author)}
-                      </span>
+                      <div className="relative flex-shrink-0">
+                        <span
+                          className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-semibold"
+                          style={{ background: meta.bg, color: meta.fg }}
+                          title={author ? `${author.prenom ?? ""} ${author.nom ?? ""}` : ""}
+                        >
+                          {initialsOf(author)}
+                        </span>
+                        <span className="absolute -bottom-0.5 -right-0.5">
+                          <PresenceDot online={presenceStatus(author?.last_seen_at).online} />
+                        </span>
+                      </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           {t.est_epingle && (
@@ -475,6 +520,18 @@ function ForumPage() {
                                 ? `${author.prenom ?? ""} ${author.nom ?? ""}`.trim() || "Membre"
                                 : "Membre"}
                             </span>
+                            {author && (
+                              <span
+                                className={`ml-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                  presenceStatus(author.last_seen_at).online
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : "bg-slate-100 text-slate-500"
+                                }`}
+                              >
+                                <PresenceDot online={presenceStatus(author.last_seen_at).online} className="!ring-0 !h-1.5 !w-1.5" />
+                                {presenceStatus(author.last_seen_at).label}
+                              </span>
+                            )}
                           </span>
                           <span>{formatDate(t.created_at)}</span>
                           <span className="inline-flex items-center gap-1">
@@ -543,12 +600,15 @@ function ForumPage() {
 }
 
 function StatCard({
-  label, value, Icon, color, bg,
-}: { label: string; value: number; Icon: typeof MessageSquare; color: string; bg: string }) {
+  label, value, Icon, color, bg, pulse,
+}: { label: string; value: number; Icon: typeof MessageSquare; color: string; bg: string; pulse?: boolean }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: bg, color }}>
+        <span
+          className={`relative flex h-10 w-10 items-center justify-center rounded-xl ${pulse ? "after:absolute after:inset-0 after:rounded-xl after:bg-emerald-400/40 after:animate-ping" : ""}`}
+          style={{ background: bg, color }}
+        >
           <Icon className="h-5 w-5" />
         </span>
         <div>
@@ -710,10 +770,11 @@ function ThreadDetail({
     const missing = ids.filter((id) => !loadedAuthorIds.current.has(id));
     if (!missing.length) return;
     missing.forEach((id) => loadedAuthorIds.current.add(id));
-    const { data: profs } = await supabase
-      .from("profiles").select("id, prenom, nom").in("id", missing);
+    const { data: profs } = await supabase.rpc("get_public_profiles" as never, {
+      _ids: missing,
+    } as never);
     const map: Record<string, Profile> = {};
-    (profs ?? []).forEach((p) => (map[p.id] = p as Profile));
+    ((profs ?? []) as Profile[]).forEach((p) => (map[p.id] = p));
     setProfiles((prev) => ({ ...prev, ...map }));
   };
 
@@ -882,12 +943,17 @@ function ThreadDetail({
 
       <article className="mt-4 rounded-2xl border border-border bg-card p-6">
         <div className="flex items-start gap-4">
-          <span
-            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-            style={{ background: meta.bg, color: meta.fg }}
-          >
-            {initialsOf(author)}
-          </span>
+          <div className="relative flex-shrink-0">
+            <span
+              className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-semibold"
+              style={{ background: meta.bg, color: meta.fg }}
+            >
+              {initialsOf(author)}
+            </span>
+            <span className="absolute -bottom-0.5 -right-0.5">
+              <PresenceDot online={presenceStatus(author?.last_seen_at).online} />
+            </span>
+          </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               {thread.est_epingle && (
@@ -919,6 +985,18 @@ function ThreadDetail({
                 <span className="font-medium text-foreground">
                   {author ? `${author.prenom ?? ""} ${author.nom ?? ""}`.trim() || "Membre" : "Membre"}
                 </span>
+                {author && (
+                  <span
+                    className={`ml-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                      presenceStatus(author.last_seen_at).online
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    <PresenceDot online={presenceStatus(author.last_seen_at).online} className="!ring-0 !h-1.5 !w-1.5" />
+                    {presenceStatus(author.last_seen_at).label}
+                  </span>
+                )}
               </span>
               <span>{formatDate(thread.created_at)}</span>
               <span className="inline-flex items-center gap-1">
@@ -1003,14 +1081,27 @@ function ThreadDetail({
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-foreground">
-                      {initialsOf(a)}
+                    <span className="relative">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-foreground">
+                        {initialsOf(a)}
+                      </span>
+                      <span className="absolute -bottom-0.5 -right-0.5">
+                        <PresenceDot online={presenceStatus(a?.last_seen_at).online} className="!h-2 !w-2" />
+                      </span>
                     </span>
                     <span className="font-medium text-foreground">
                       {a ? `${a.prenom ?? ""} ${a.nom ?? ""}`.trim() || "Membre" : "Membre"}
                     </span>
                     <span>•</span>
                     <span>{formatDate(r.created_at)}</span>
+                    {a && (
+                      <>
+                        <span>•</span>
+                        <span className={presenceStatus(a.last_seen_at).online ? "text-emerald-600" : ""}>
+                          {presenceStatus(a.last_seen_at).label}
+                        </span>
+                      </>
+                    )}
                   </div>
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                     {r.contenu}
