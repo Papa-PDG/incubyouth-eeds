@@ -4,7 +4,6 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
-  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -163,12 +162,9 @@ function RootComponent() {
 }
 
 function PageTransition({ children }: { children: React.ReactNode }) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  return (
-    <div key={pathname} className="anim-fade-up">
-      {children}
-    </div>
-  );
+  // On retire la remontée au changement de pathname : ça cassait l'état
+  // des pages dynamiques (ex: chat qui crée une conversation puis navigue).
+  return <div className="anim-fade-up">{children}</div>;
 }
 
 function FirstLoginWelcome() {
