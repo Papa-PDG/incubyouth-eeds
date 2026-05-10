@@ -707,7 +707,7 @@ function ThreadDetail({
 
   useEffect(() => {
     void load();
-    // realtime: nouvelles réponses
+    // realtime: nouvelles réponses + likes + meilleure réponse + suppressions
     const ch = supabase
       .channel(`thread-${thread.id}`)
       .on(
@@ -715,8 +715,38 @@ function ThreadDetail({
         { event: "INSERT", schema: "public", table: "forum_replies", filter: `thread_id=eq.${thread.id}` },
         async (payload) => {
           const r = payload.new as Reply;
-          setReplies((arr) => (arr.some((x) => x.id === r.id) ? arr : [...arr, r]));
+          setReplies((arr) => {
+            if (arr.some((x) => x.id === r.id)) return arr;
+            return [...arr, r];
+          });
           await fetchProfilesForIds([r.user_id]);
+          if (r.user_id !== currentUserId) {
+            toast.message("Nouvelle réponse", { description: "Un membre vient de répondre." });
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "forum_replies", filter: `thread_id=eq.${thread.id}` },
+        (payload) => {
+          const r = payload.new as Reply;
+          setReplies((arr) => arr.map((x) => (x.id === r.id ? { ...x, ...r } : x)));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "forum_replies", filter: `thread_id=eq.${thread.id}` },
+        (payload) => {
+          const r = payload.old as Partial<Reply>;
+          if (r.id) setReplies((arr) => arr.filter((x) => x.id !== r.id));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "forum_threads", filter: `id=eq.${thread.id}` },
+        (payload) => {
+          const t = payload.new as Partial<Thread>;
+          onThreadUpdate(t);
         },
       )
       .subscribe();
