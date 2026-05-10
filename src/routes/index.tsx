@@ -140,11 +140,10 @@ function Index() {
           </span>
           <h1 className="mt-6 text-[40px] font-bold leading-[1.1] tracking-tight text-foreground sm:text-[52px]">
             L'intelligence artificielle au service des{" "}
-            <span className="relative whitespace-nowrap text-primary">
-              scouts
+            <span className="relative inline-block text-primary">
+              Éclaireuses et Éclaireurs du Sénégal
               <span className="absolute -bottom-1 left-0 right-0 h-1 rounded-full bg-primary/80" />
-            </span>{" "}
-            du Sénégal
+            </span>
           </h1>
           <p className="mx-auto mt-6 max-w-[600px] text-[18px] leading-relaxed text-muted-foreground">
             Pose tes questions sur le scoutisme, tes droits, l'environnement et la santé.
