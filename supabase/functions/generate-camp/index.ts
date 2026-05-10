@@ -69,12 +69,12 @@ Réponds UNIQUEMENT avec un JSON valide (pas de markdown, pas de texte avant ou 
 Adapte au contexte sénégalais : recettes traditionnelles (thiéboudienne, mafé, yassa, ceebu jën...), ressources locales, climat de ${region}, thème ${theme}. 4 à 6 items par liste, programme complet sur ${duree} jours, types d'activités parmi : installation, atelier, sport, repas, cérémonie, veillée. Sois concis, pas de phrases longues.`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    const timeoutId = setTimeout(() => controller.abort(), 110000);
 
     let response: Response;
     try {
       response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -82,7 +82,7 @@ Adapte au contexte sénégalais : recettes traditionnelles (thiéboudienne, maf�
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: {
-              maxOutputTokens: 32768,
+              maxOutputTokens: 8192,
               temperature: 0.7,
               responseMimeType: "application/json",
             },
