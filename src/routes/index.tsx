@@ -12,7 +12,9 @@ import {
   BookOpen,
 } from "lucide-react";
 import { AnimateOnScroll } from "@/components/ui/animate-on-scroll";
-import heroScout from "@/assets/hero-scout.png";
+import heroAvif from "@/assets/hero-scout.avif";
+import heroWebp from "@/assets/hero-scout.webp";
+import heroJpg from "@/assets/hero-scout.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -141,28 +143,28 @@ function Index() {
             <span className="anim-fade-up inline-flex items-center rounded-full bg-primary-soft px-4 py-1.5 text-[13px] font-medium text-primary">
               ✦ Plateforme officielle des EEDS
             </span>
-            <h1 className="anim-fade-up delay-2 mt-6 text-[40px] font-bold leading-[1.1] tracking-tight text-foreground sm:text-[52px]">
+            <h1 className="anim-fade-up delay-2 mt-6 text-[30px] font-bold leading-[1.15] tracking-tight text-foreground sm:text-[40px] lg:text-[52px]">
               L'intelligence artificielle au service des{" "}
               <span className="relative inline-block text-primary">
                 Éclaireuses et Éclaireurs du Sénégal
                 <span className="absolute -bottom-1 left-0 right-0 h-1 rounded-full bg-primary/80" />
               </span>
             </h1>
-            <p className="anim-fade-up delay-4 mt-6 max-w-[600px] text-[18px] leading-relaxed text-muted-foreground lg:mx-0 mx-auto">
+            <p className="anim-fade-up delay-4 mx-auto mt-6 max-w-[600px] text-[16px] leading-relaxed text-muted-foreground sm:text-[18px] lg:mx-0">
               Pose tes questions sur le scoutisme, tes droits, l'environnement et la santé.
               Incub'Youth te répond 24h/24 avec l'IA.
             </p>
             <div className="anim-fade-up delay-6 mt-10 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
               <Link
                 to="/register"
-                className="btn-bounce group inline-flex h-12 items-center gap-2 rounded-[10px] bg-primary px-7 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+                className="btn-bounce group inline-flex h-12 items-center gap-2 rounded-[10px] bg-primary px-7 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 Commencer gratuitement{" "}
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
               <Link
                 to="/chat"
-                className="btn-bounce inline-flex h-12 items-center rounded-[10px] border-2 border-primary bg-transparent px-7 text-[15px] font-semibold text-primary transition-colors hover:bg-accent"
+                className="btn-bounce inline-flex h-12 items-center rounded-[10px] border-2 border-primary bg-transparent px-7 text-[15px] font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 Voir une démo
               </Link>
@@ -173,7 +175,7 @@ function Index() {
           </div>
 
           <AnimateOnScroll animation="scale-in">
-            <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+            <div className="relative mx-auto w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-none">
               <div
                 aria-hidden
                 className="absolute -inset-6 rounded-[2rem] bg-gradient-to-tr from-primary/30 via-primary/10 to-transparent blur-2xl"
@@ -183,18 +185,27 @@ function Index() {
                 className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-primary/20 blur-2xl"
               />
               <div className="relative overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-2xl ring-1 ring-primary/10 transition-transform duration-500 hover:scale-[1.02] hover:shadow-primary/20">
-                <img
-                  src={heroScout}
-                  alt="Éclaireur du Sénégal présentant l'application Incub'Youth"
-                  loading="eager"
-                  className="h-full w-full object-cover"
-                />
+                <picture>
+                  <source srcSet={heroAvif} type="image/avif" />
+                  <source srcSet={heroWebp} type="image/webp" />
+                  <img
+                    src={heroJpg}
+                    alt="Éclaireur sénégalais en uniforme scout consultant l'application Incub'Youth sur un smartphone"
+                    width={900}
+                    height={900}
+                    loading="eager"
+                    decoding="async"
+                    /* @ts-expect-error fetchpriority is valid HTML, types lag */
+                    fetchpriority="high"
+                    className="block h-auto w-full object-cover"
+                  />
+                </picture>
                 <div
                   aria-hidden
                   className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-primary/10 via-transparent to-transparent"
                 />
               </div>
-              <div className="absolute -bottom-5 -left-5 hidden items-center gap-2 rounded-full border border-border bg-card/95 px-4 py-2 text-[12px] font-medium text-foreground shadow-lg backdrop-blur sm:flex">
+              <div aria-hidden className="absolute -bottom-5 -left-5 hidden items-center gap-2 rounded-full border border-border bg-card/95 px-4 py-2 text-[12px] font-medium text-foreground shadow-lg backdrop-blur sm:flex">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
