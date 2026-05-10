@@ -770,10 +770,11 @@ function ThreadDetail({
     const missing = ids.filter((id) => !loadedAuthorIds.current.has(id));
     if (!missing.length) return;
     missing.forEach((id) => loadedAuthorIds.current.add(id));
-    const { data: profs } = await supabase
-      .from("profiles").select("id, prenom, nom").in("id", missing);
+    const { data: profs } = await supabase.rpc("get_public_profiles" as never, {
+      _ids: missing,
+    } as never);
     const map: Record<string, Profile> = {};
-    (profs ?? []).forEach((p) => (map[p.id] = p as Profile));
+    ((profs ?? []) as Profile[]).forEach((p) => (map[p.id] = p));
     setProfiles((prev) => ({ ...prev, ...map }));
   };
 
@@ -942,12 +943,17 @@ function ThreadDetail({
 
       <article className="mt-4 rounded-2xl border border-border bg-card p-6">
         <div className="flex items-start gap-4">
-          <span
-            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-            style={{ background: meta.bg, color: meta.fg }}
-          >
-            {initialsOf(author)}
-          </span>
+          <div className="relative flex-shrink-0">
+            <span
+              className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-semibold"
+              style={{ background: meta.bg, color: meta.fg }}
+            >
+              {initialsOf(author)}
+            </span>
+            <span className="absolute -bottom-0.5 -right-0.5">
+              <PresenceDot online={presenceStatus(author?.last_seen_at).online} />
+            </span>
+          </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               {thread.est_epingle && (
@@ -979,6 +985,18 @@ function ThreadDetail({
                 <span className="font-medium text-foreground">
                   {author ? `${author.prenom ?? ""} ${author.nom ?? ""}`.trim() || "Membre" : "Membre"}
                 </span>
+                {author && (
+                  <span
+                    className={`ml-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                      presenceStatus(author.last_seen_at).online
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    <PresenceDot online={presenceStatus(author.last_seen_at).online} className="!ring-0 !h-1.5 !w-1.5" />
+                    {presenceStatus(author.last_seen_at).label}
+                  </span>
+                )}
               </span>
               <span>{formatDate(thread.created_at)}</span>
               <span className="inline-flex items-center gap-1">
@@ -1063,14 +1081,27 @@ function ThreadDetail({
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-foreground">
-                      {initialsOf(a)}
+                    <span className="relative">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-foreground">
+                        {initialsOf(a)}
+                      </span>
+                      <span className="absolute -bottom-0.5 -right-0.5">
+                        <PresenceDot online={presenceStatus(a?.last_seen_at).online} className="!h-2 !w-2" />
+                      </span>
                     </span>
                     <span className="font-medium text-foreground">
                       {a ? `${a.prenom ?? ""} ${a.nom ?? ""}`.trim() || "Membre" : "Membre"}
                     </span>
                     <span>•</span>
                     <span>{formatDate(r.created_at)}</span>
+                    {a && (
+                      <>
+                        <span>•</span>
+                        <span className={presenceStatus(a.last_seen_at).online ? "text-emerald-600" : ""}>
+                          {presenceStatus(a.last_seen_at).label}
+                        </span>
+                      </>
+                    )}
                   </div>
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                     {r.contenu}
