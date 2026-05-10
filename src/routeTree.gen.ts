@@ -17,7 +17,6 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as EspaceRouteImport } from './routes/espace'
 import { Route as ConditionsUtilisationRouteImport } from './routes/conditions-utilisation'
 import { Route as ChatRouteImport } from './routes/chat'
-import { Route as CampRouteImport } from './routes/camp'
 import { Route as CalendrierRouteImport } from './routes/calendrier'
 import { Route as BibliothequeRouteImport } from './routes/bibliotheque'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -68,11 +67,6 @@ const ConditionsUtilisationRoute = ConditionsUtilisationRouteImport.update({
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CampRoute = CampRouteImport.update({
-  id: '/camp',
-  path: '/camp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalendrierRoute = CalendrierRouteImport.update({
@@ -136,7 +130,6 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/bibliotheque': typeof BibliothequeRoute
   '/calendrier': typeof CalendrierRoute
-  '/camp': typeof CampRoute
   '/chat': typeof ChatRouteWithChildren
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
@@ -157,7 +150,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bibliotheque': typeof BibliothequeRoute
   '/calendrier': typeof CalendrierRoute
-  '/camp': typeof CampRoute
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -179,7 +171,6 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/bibliotheque': typeof BibliothequeRoute
   '/calendrier': typeof CalendrierRoute
-  '/camp': typeof CampRoute
   '/chat': typeof ChatRouteWithChildren
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
   '/espace': typeof EspaceRoute
@@ -203,7 +194,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/bibliotheque'
     | '/calendrier'
-    | '/camp'
     | '/chat'
     | '/conditions-utilisation'
     | '/espace'
@@ -224,7 +214,6 @@ export interface FileRouteTypes {
     | '/'
     | '/bibliotheque'
     | '/calendrier'
-    | '/camp'
     | '/conditions-utilisation'
     | '/espace'
     | '/forgot-password'
@@ -245,7 +234,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/bibliotheque'
     | '/calendrier'
-    | '/camp'
     | '/chat'
     | '/conditions-utilisation'
     | '/espace'
@@ -268,7 +256,6 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   BibliothequeRoute: typeof BibliothequeRoute
   CalendrierRoute: typeof CalendrierRoute
-  CampRoute: typeof CampRoute
   ChatRoute: typeof ChatRouteWithChildren
   ConditionsUtilisationRoute: typeof ConditionsUtilisationRoute
   EspaceRoute: typeof EspaceRoute
@@ -335,13 +322,6 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/camp': {
-      id: '/camp'
-      path: '/camp'
-      fullPath: '/camp'
-      preLoaderRoute: typeof CampRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calendrier': {
@@ -459,7 +439,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   BibliothequeRoute: BibliothequeRoute,
   CalendrierRoute: CalendrierRoute,
-  CampRoute: CampRoute,
   ChatRoute: ChatRouteWithChildren,
   ConditionsUtilisationRoute: ConditionsUtilisationRoute,
   EspaceRoute: EspaceRoute,

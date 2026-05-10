@@ -46,7 +46,7 @@ const themes: ReadonlyArray<{
   title: string;
   desc: string;
   slug: string;
-  to: "/chat" | "/camp" | "/bibliotheque";
+  to: "/chat" | "/bibliotheque";
 }> = [
   {
     Icon: Tent,
@@ -75,13 +75,6 @@ const themes: ReadonlyArray<{
     desc: "Hygiène, nutrition, premiers secours",
     slug: "sante",
     to: "/chat",
-  },
-  {
-    Icon: Tent,
-    title: "Planifier un camp",
-    desc: "Génère automatiquement programme, matériel, recettes et checklist sécurité",
-    slug: "camp",
-    to: "/camp",
   },
   {
     Icon: BookOpen,
