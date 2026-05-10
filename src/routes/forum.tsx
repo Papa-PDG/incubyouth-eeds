@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   MessageSquare,
@@ -95,8 +95,6 @@ function CategoryBadge({ categoryKey }: { categoryKey: CategoryKey }) {
 
 function ForumPage() {
   const { user, profile } = useAuth();
-  const navigate = useNavigate();
-
   const [threads, setThreads] = useState<ForumThread[]>(MOCK_THREADS);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<CategoryKey | "all">("all");

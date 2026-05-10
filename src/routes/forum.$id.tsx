@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -63,8 +63,6 @@ function Avatar({
 function ThreadDetailPage() {
   const { id } = Route.useParams();
   const { user } = useAuth();
-  const navigate = useNavigate();
-
   const thread = useMemo(() => MOCK_THREADS.find((t) => t.id === id), [id]);
   const [replies, setReplies] = useState<ForumReply[]>(
     MOCK_REPLIES.filter((r) => r.threadId === id),
