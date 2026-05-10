@@ -4,12 +4,14 @@ type Msg = { role: "user" | "assistant"; content: string };
 
 export async function streamChat({
   messages,
+  userName,
   onDelta,
   onDone,
   onError,
   signal,
 }: {
   messages: Msg[];
+  userName?: string;
   onDelta: (chunk: string) => void;
   onDone: () => void;
   onError: (msg: string) => void;
@@ -31,7 +33,7 @@ export async function streamChat({
     let invokeError: InvokeErr = null;
     try {
       const res = await supabase.functions.invoke("chat-ai", {
-        body: { conversationHistory: history },
+        body: { conversationHistory: history, userName },
       });
       data = res.data as AiData;
       invokeError = res.error as InvokeErr;
