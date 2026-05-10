@@ -12,6 +12,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { AnimateOnScroll } from "@/components/ui/animate-on-scroll";
+import heroScout from "@/assets/hero-scout.png";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -135,39 +136,73 @@ function Index() {
           className="absolute inset-x-0 top-0 h-96 bg-gradient-to-b from-primary-subtle to-transparent"
           aria-hidden
         />
-        <div className="relative mx-auto max-w-5xl px-4 py-[100px] text-center sm:px-6 lg:px-8">
-          <span className="anim-fade-up inline-flex items-center rounded-full bg-primary-soft px-4 py-1.5 text-[13px] font-medium text-primary">
-            ✦ Plateforme officielle des EEDS
-          </span>
-          <h1 className="anim-fade-up delay-2 mt-6 text-[40px] font-bold leading-[1.1] tracking-tight text-foreground sm:text-[52px]">
-            L'intelligence artificielle au service des{" "}
-            <span className="relative inline-block text-primary">
-              Éclaireuses et Éclaireurs du Sénégal
-              <span className="absolute -bottom-1 left-0 right-0 h-1 rounded-full bg-primary/80" />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-[100px] sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:gap-16 lg:px-8">
+          <div className="text-center lg:text-left">
+            <span className="anim-fade-up inline-flex items-center rounded-full bg-primary-soft px-4 py-1.5 text-[13px] font-medium text-primary">
+              ✦ Plateforme officielle des EEDS
             </span>
-          </h1>
-          <p className="anim-fade-up delay-4 mx-auto mt-6 max-w-[600px] text-[18px] leading-relaxed text-muted-foreground">
-            Pose tes questions sur le scoutisme, tes droits, l'environnement et la santé.
-            Incub'Youth te répond 24h/24 avec l'IA.
-          </p>
-          <div className="anim-fade-up delay-6 mt-10 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              to="/register"
-              className="btn-bounce group inline-flex h-12 items-center gap-2 rounded-[10px] bg-primary px-7 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
-            >
-              Commencer gratuitement{" "}
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link
-              to="/chat"
-              className="btn-bounce inline-flex h-12 items-center rounded-[10px] border-2 border-primary bg-transparent px-7 text-[15px] font-semibold text-primary transition-colors hover:bg-accent"
-            >
-              Voir une démo
-            </Link>
+            <h1 className="anim-fade-up delay-2 mt-6 text-[40px] font-bold leading-[1.1] tracking-tight text-foreground sm:text-[52px]">
+              L'intelligence artificielle au service des{" "}
+              <span className="relative inline-block text-primary">
+                Éclaireuses et Éclaireurs du Sénégal
+                <span className="absolute -bottom-1 left-0 right-0 h-1 rounded-full bg-primary/80" />
+              </span>
+            </h1>
+            <p className="anim-fade-up delay-4 mt-6 max-w-[600px] text-[18px] leading-relaxed text-muted-foreground lg:mx-0 mx-auto">
+              Pose tes questions sur le scoutisme, tes droits, l'environnement et la santé.
+              Incub'Youth te répond 24h/24 avec l'IA.
+            </p>
+            <div className="anim-fade-up delay-6 mt-10 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+              <Link
+                to="/register"
+                className="btn-bounce group inline-flex h-12 items-center gap-2 rounded-[10px] bg-primary px-7 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+              >
+                Commencer gratuitement{" "}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <Link
+                to="/chat"
+                className="btn-bounce inline-flex h-12 items-center rounded-[10px] border-2 border-primary bg-transparent px-7 text-[15px] font-semibold text-primary transition-colors hover:bg-accent"
+              >
+                Voir une démo
+              </Link>
+            </div>
+            <p className="anim-fade-up delay-8 mt-6 text-[13px] text-muted-foreground">
+              Déjà 500+ scouts inscrits · Gratuit · Sans publicité
+            </p>
           </div>
-          <p className="anim-fade-up delay-8 mt-6 text-[13px] text-muted-foreground">
-            Déjà 500+ scouts inscrits · Gratuit · Sans publicité
-          </p>
+
+          <AnimateOnScroll animation="scale-in">
+            <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+              <div
+                aria-hidden
+                className="absolute -inset-6 rounded-[2rem] bg-gradient-to-tr from-primary/30 via-primary/10 to-transparent blur-2xl"
+              />
+              <div
+                aria-hidden
+                className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-primary/20 blur-2xl"
+              />
+              <div className="relative overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-2xl ring-1 ring-primary/10 transition-transform duration-500 hover:scale-[1.02] hover:shadow-primary/20">
+                <img
+                  src={heroScout}
+                  alt="Éclaireur du Sénégal présentant l'application Incub'Youth"
+                  loading="eager"
+                  className="h-full w-full object-cover"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-primary/10 via-transparent to-transparent"
+                />
+              </div>
+              <div className="absolute -bottom-5 -left-5 hidden items-center gap-2 rounded-full border border-border bg-card/95 px-4 py-2 text-[12px] font-medium text-foreground shadow-lg backdrop-blur sm:flex">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+                </span>
+                IA disponible 24/7
+              </div>
+            </div>
+          </AnimateOnScroll>
         </div>
       </section>
 
