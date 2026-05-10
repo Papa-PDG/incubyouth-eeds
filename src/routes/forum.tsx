@@ -295,8 +295,11 @@ function ForumPage() {
   const totals = useMemo(() => {
     const totalReplies = Object.values(replyCounts).reduce((a, b) => a + b, 0);
     const resolus = threads.filter((t) => t.est_resolu).length;
-    return { threads: threads.length, replies: totalReplies, resolus };
-  }, [threads, replyCounts]);
+    const onlineNow = Object.values(profiles).filter((p) =>
+      presenceStatus(p.last_seen_at).online,
+    ).length;
+    return { threads: threads.length, replies: totalReplies, resolus, onlineNow };
+  }, [threads, replyCounts, profiles]);
 
   const catCounts = useMemo(() => {
     const m: Record<string, number> = { all: threads.length };
@@ -373,10 +376,11 @@ function ForumPage() {
             </button>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
             <StatCard label="Discussions" value={totals.threads} Icon={MessageSquare} color="#622599" bg="#F3E8FF" />
             <StatCard label="Réponses" value={totals.replies} Icon={Send} color="#0C447C" bg="#E6F1FB" />
             <StatCard label="Membres" value={memberCount} Icon={Users} color="#27500A" bg="#EAF3DE" />
+            <StatCard label="En ligne" value={totals.onlineNow} Icon={Users} color="#047857" bg="#D1FAE5" pulse />
             <StatCard label="Résolus" value={totals.resolus} Icon={CheckCircle2} color="#085041" bg="#E1F5EE" />
           </div>
 
@@ -579,12 +583,15 @@ function ForumPage() {
 }
 
 function StatCard({
-  label, value, Icon, color, bg,
-}: { label: string; value: number; Icon: typeof MessageSquare; color: string; bg: string }) {
+  label, value, Icon, color, bg, pulse,
+}: { label: string; value: number; Icon: typeof MessageSquare; color: string; bg: string; pulse?: boolean }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: bg, color }}>
+        <span
+          className={`relative flex h-10 w-10 items-center justify-center rounded-xl ${pulse ? "after:absolute after:inset-0 after:rounded-xl after:bg-emerald-400/40 after:animate-ping" : ""}`}
+          style={{ background: bg, color }}
+        >
           <Icon className="h-5 w-5" />
         </span>
         <div>
