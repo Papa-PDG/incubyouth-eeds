@@ -615,6 +615,28 @@ function CampPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      onClick={() =>
+                        exportCampPdf(
+                          {
+                            nomCamp: c.nom_camp,
+                            duree: c.duree,
+                            theme: c.theme,
+                            effectif: c.effectif,
+                            age: c.age,
+                            region: c.region,
+                          },
+                          c.plan_json,
+                          "all",
+                        )
+                      }
+                      aria-label="Exporter en PDF"
+                      className="border-[#622599] text-[#622599] hover:bg-[#F3E8FF] hover:text-[#622599]"
+                    >
+                      <FileDown className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => deleteCamp(c.id)}
                       aria-label="Supprimer"
                     >
