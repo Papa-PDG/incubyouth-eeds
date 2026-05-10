@@ -17,6 +17,7 @@ const navLinks = [
   { to: "/chat", label: "Discussion" },
   { to: "/bibliotheque", label: "Bibliothèque" },
   { to: "/forum", label: "Forum" },
+  { to: "/calendrier", label: "Calendrier" },
   { to: "/camp", label: "Planificateur de camp" },
   { to: "/espace", label: "Mon Espace" },
 ] as const;
