@@ -78,6 +78,7 @@ function EspacePage() {
   const [camps, setCamps] = useState<CampRow[]>([]);
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const editRef = useRef<HTMLDivElement | null>(null);
 
   // Form fields
   const [prenom, setPrenom] = useState("");
@@ -283,7 +284,12 @@ function EspacePage() {
           </div>
           <Button
             variant="outline"
-            onClick={() => setEditOpen((v) => !v)}
+            onClick={() => {
+              setEditOpen(true);
+              setTimeout(() => {
+                editRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }, 50);
+            }}
             className="border-[#622599] text-[#622599] hover:bg-[#F3E8FF] hover:text-[#622599]"
           >
             <Pencil className="mr-2 h-4 w-4" /> Modifier mon profil
@@ -448,6 +454,7 @@ function EspacePage() {
 
       {/* EDIT PROFILE */}
       <Accordion
+        ref={editRef as any}
         type="single"
         collapsible
         value={editOpen ? "edit" : ""}
