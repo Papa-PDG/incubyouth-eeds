@@ -112,7 +112,17 @@ export function Navbar() {
 
         <div className="hidden items-center gap-3 md:flex">
           {session ? (
-            <DropdownMenu>
+            <>
+              <button
+                onClick={handleSignOut}
+                title="Se déconnecter immédiatement"
+                aria-label="Se déconnecter"
+                className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-destructive/40 bg-transparent px-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden lg:inline">Déconnexion</span>
+              </button>
+              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
                   {initials(meta.prenom, meta.nom, user?.email)}
@@ -131,7 +141,8 @@ export function Navbar() {
                   <LogOut className="mr-2 h-4 w-4" /> Déconnexion
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenu>
+            </>
           ) : (
             <>
               <Link
