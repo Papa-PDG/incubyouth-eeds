@@ -336,11 +336,14 @@ function ForumPage() {
   const totals = useMemo(() => {
     const totalReplies = Object.values(replyCounts).reduce((a, b) => a + b, 0);
     const resolus = threads.filter((t) => t.est_resolu).length;
-    const onlineNow = Object.values(profiles).filter((p) =>
-      presenceStatus(p.last_seen_at).online,
-    ).length;
+    const onlineNow = new Set<string>([
+      ...Array.from(onlineIds),
+      ...Object.values(profiles)
+        .filter((p) => presenceStatus(p.last_seen_at).online)
+        .map((p) => p.id),
+    ]).size;
     return { threads: threads.length, replies: totalReplies, resolus, onlineNow };
-  }, [threads, replyCounts, profiles]);
+  }, [threads, replyCounts, profiles, onlineIds]);
 
   const catCounts = useMemo(() => {
     const m: Record<string, number> = { all: threads.length };
