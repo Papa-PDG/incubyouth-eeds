@@ -346,8 +346,8 @@ const MessageBubble = memo(function MessageBubble({
 
   if (isUser) {
     return (
-      <div className="flex flex-col items-end">
-        <div className="max-w-[75%] rounded-[18px_18px_4px_18px] bg-[#622599] px-4 py-2.5 text-white">
+      <div className="anim-scale-in flex flex-col items-end">
+        <div className="max-w-[75%] rounded-[18px_18px_4px_18px] bg-[#622599] px-4 py-2.5 text-white shadow-sm">
           <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
         </div>
         {time && <span className="mt-1 text-[10px] text-muted-foreground">{time}</span>}
@@ -356,8 +356,8 @@ const MessageBubble = memo(function MessageBubble({
   }
 
   return (
-    <div className="flex items-start gap-2">
-      <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#622599] text-xs font-bold text-white">
+    <div className="anim-fade-up flex items-start gap-2">
+      <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#622599] text-xs font-bold text-white anim-pop">
         IY
       </div>
       <div className="flex max-w-[80%] flex-col">
