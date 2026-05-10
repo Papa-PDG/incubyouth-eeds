@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { streamChat } from "@/lib/chat-stream";
 import { ConversationSidebar } from "./conversation-sidebar";
 import { toast } from "sonner";
+import { sanitizeUserText, MAX_CHAT_MESSAGE_LENGTH } from "@/lib/sanitize";
 
 type Msg = {
   id?: string;
@@ -109,10 +110,16 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   }, [input]);
 
   const send = async (text: string) => {
-    if (!text.trim() || streaming || !user) return;
+    if (streaming || !user) return;
+    const safe = sanitizeUserText(text);
+    if (!safe) {
+      toast.error("Message vide ou invalide.");
+      return;
+    }
     setInput("");
     setStreaming(true);
-    lastUserMsgRef.current = text;
+    lastUserMsgRef.current = safe;
+    text = safe;
 
     let convId = conversationId;
     // Create conversation if first message
@@ -289,9 +296,10 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
               <Textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => setInput(e.target.value.slice(0, MAX_CHAT_MESSAGE_LENGTH))}
                 onKeyDown={onKey}
                 rows={1}
+                maxLength={MAX_CHAT_MESSAGE_LENGTH}
                 placeholder="Pose ta question à Incub'Youth..."
                 className="min-h-0 flex-1 resize-none border-0 bg-transparent p-2 shadow-none focus-visible:ring-0"
               />

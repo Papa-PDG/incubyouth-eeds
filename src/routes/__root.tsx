@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { Navbar } from "@/components/navbar";
 import { Toaster } from "@/components/ui/sonner";
 import { WelcomeScreen } from "@/components/welcome-screen";
+import { useInactivityLogout } from "@/hooks/use-inactivity-logout";
 
 function NotFoundComponent() {
   return (
@@ -150,6 +151,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <SecurityGuards />
         <Navbar />
         <PageTransition>
           <Outlet />
@@ -159,6 +161,12 @@ function RootComponent() {
       </AuthProvider>
     </QueryClientProvider>
   );
+}
+
+function SecurityGuards() {
+  // Auto-déconnexion après 30 min d'inactivité
+  useInactivityLogout();
+  return null;
 }
 
 function PageTransition({ children }: { children: React.ReactNode }) {
