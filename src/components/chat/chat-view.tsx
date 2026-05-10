@@ -461,3 +461,24 @@ function TypingDots() {
     </div>
   );
 }
+
+function CopyButton({ onCopy }: { onCopy: () => void }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        onCopy();
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="rounded p-1 transition-transform hover:bg-muted active:scale-90"
+      aria-label="Copier"
+    >
+      {copied ? (
+        <Check className="h-3 w-3 text-[#16A34A] anim-pop" />
+      ) : (
+        <Copy className="h-3 w-3" />
+      )}
+    </button>
+  );
+}
