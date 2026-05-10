@@ -4,14 +4,17 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 import appCss from "../styles.css?url";
-import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { Navbar } from "@/components/navbar";
 import { Toaster } from "@/components/ui/sonner";
+import { WelcomeScreen } from "@/components/welcome-screen";
 
 function NotFoundComponent() {
   return (
@@ -149,9 +152,42 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Navbar />
-        <Outlet />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
+        <FirstLoginWelcome />
         <Toaster richColors position="top-right" />
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function PageTransition({ children }: { children: React.ReactNode }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  return (
+    <div key={pathname} className="anim-fade-up">
+      {children}
+    </div>
+  );
+}
+
+function FirstLoginWelcome() {
+  const { user, profile } = useAuth();
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    if (typeof window === "undefined") return;
+    const key = `incubyouth_visited_${user.id}`;
+    if (!localStorage.getItem(key)) {
+      setShow(true);
+      localStorage.setItem(key, "true");
+    }
+  }, [user]);
+  if (!show || !user) return null;
+  return (
+    <WelcomeScreen
+      prenom={profile?.prenom ?? "scout"}
+      onClose={() => setShow(false)}
+    />
   );
 }
