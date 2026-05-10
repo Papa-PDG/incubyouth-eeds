@@ -14,6 +14,8 @@ import {
   CalendarPlus,
   CheckCircle2,
   AlertCircle,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -112,6 +114,7 @@ function CalendrierPage() {
   const [activeFilter, setActiveFilter] = useState<"all" | EventType>("all");
   const [selectedEvent, setSelectedEvent] = useState<Evt | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
+  const [editEvent, setEditEvent] = useState<Evt | null>(null);
   const [inscriptions, setInscriptions] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
 
@@ -173,6 +176,15 @@ function CalendrierPage() {
       setSelectedEvent((p) => p && p.id === evt.id ? { ...p, nb_inscrits: p.nb_inscrits + 1 } : p);
       toast.success(statut === "liste_attente" ? "Ajouté en liste d'attente" : "Inscription confirmée !");
     }
+  };
+
+  const handleDelete = async (evt: Evt) => {
+    if (!confirm(`Supprimer l'événement "${evt.titre}" ? Cette action est irréversible.`)) return;
+    const { error } = await db.from("evenements").delete().eq("id", evt.id);
+    if (error) { toast.error(error.message); return; }
+    setEvenements((p) => p.filter((e) => e.id !== evt.id));
+    setSelectedEvent(null);
+    toast.success("Événement supprimé");
   };
 
   return (
@@ -276,20 +288,39 @@ function CalendrierPage() {
         <EventDetailModal
           evt={selectedEvent}
           isInscrit={inscriptions.has(selectedEvent.id)}
+          isAdmin={isAdmin}
           onClose={() => setSelectedEvent(null)}
           onInscription={() => handleInscription(selectedEvent)}
           onAskAi={() => navigate({ to: "/chat" })}
+          onEdit={() => { setEditEvent(selectedEvent); setSelectedEvent(null); }}
+          onDelete={() => handleDelete(selectedEvent)}
         />
       )}
 
       {showNewModal && isAdmin && user && (
-        <NewEventModal
+        <EventFormModal
           userId={user.id}
           onClose={() => setShowNewModal(false)}
-          onCreated={(evt) => {
-            setEvenements((p) => [...p, evt].sort((a, b) => a.date_debut.localeCompare(b.date_debut)));
+          onSaved={(evt, isNew) => {
+            setEvenements((p) => {
+              const next = isNew ? [...p, evt] : p.map((e) => e.id === evt.id ? evt : e);
+              return next.sort((a, b) => a.date_debut.localeCompare(b.date_debut));
+            });
             setShowNewModal(false);
             toast.success("Événement créé et visible par tous les scouts !");
+          }}
+        />
+      )}
+
+      {editEvent && isAdmin && user && (
+        <EventFormModal
+          userId={user.id}
+          existing={editEvent}
+          onClose={() => setEditEvent(null)}
+          onSaved={(evt) => {
+            setEvenements((p) => p.map((e) => e.id === evt.id ? evt : e).sort((a, b) => a.date_debut.localeCompare(b.date_debut)));
+            setEditEvent(null);
+            toast.success("Événement mis à jour");
           }}
         />
       )}
