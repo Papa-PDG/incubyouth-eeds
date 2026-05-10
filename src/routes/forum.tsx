@@ -210,11 +210,45 @@ function ForumPage() {
       )
       .on(
         "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "forum_threads" },
+        (payload) => {
+          const t = payload.new as Thread;
+          setThreads((arr) => {
+            const exists = arr.some((x) => x.id === t.id);
+            return exists ? arr.map((x) => (x.id === t.id ? { ...x, ...t } : x)) : [t, ...arr];
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "forum_threads" },
+        (payload) => {
+          const t = payload.old as Partial<Thread>;
+          if (!t.id) return;
+          setThreads((arr) => arr.filter((x) => x.id !== t.id));
+          setReplyCounts((c) => { const n = { ...c }; delete n[t.id!]; return n; });
+          setLastReplyAt((l) => { const n = { ...l }; delete n[t.id!]; return n; });
+        },
+      )
+      .on(
+        "postgres_changes",
         { event: "INSERT", schema: "public", table: "forum_replies" },
         (payload) => {
           const r = payload.new as Reply;
           setReplyCounts((c) => ({ ...c, [r.thread_id]: (c[r.thread_id] ?? 0) + 1 }));
           setLastReplyAt((l) => ({ ...l, [r.thread_id]: r.created_at }));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "forum_replies" },
+        (payload) => {
+          const r = payload.old as Partial<Reply>;
+          if (!r.thread_id) return;
+          setReplyCounts((c) => ({
+            ...c,
+            [r.thread_id!]: Math.max(0, (c[r.thread_id!] ?? 1) - 1),
+          }));
         },
       )
       .subscribe();
