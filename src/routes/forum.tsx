@@ -1,0 +1,926 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  MessageSquare,
+  Plus,
+  Search,
+  Heart,
+  Eye,
+  Pin,
+  CheckCircle2,
+  Lock,
+  Flag,
+  ArrowLeft,
+  Send,
+  Loader2,
+  Trees,
+  Scale,
+  HeartPulse,
+  Shield,
+  Sparkles,
+} from "lucide-react";
+import { ProtectedRoute } from "@/components/route-guards";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export const Route = createFileRoute("/forum")({
+  head: () => ({
+    meta: [
+      { title: "Forum Scout Communautaire — Incub'Youth" },
+      {
+        name: "description",
+        content:
+          "Échangez avec la communauté EEDS : scoutisme, droits de l'enfant, environnement, santé et plus.",
+      },
+    ],
+  }),
+  component: () => (
+    <ProtectedRoute>
+      <ForumPage />
+    </ProtectedRoute>
+  ),
+});
+
+const db = supabase as unknown as {
+  from: (t: string) => ReturnType<typeof supabase.from>;
+};
+
+type Thread = {
+  id: string;
+  titre: string;
+  contenu: string;
+  categorie: string;
+  user_id: string;
+  est_epingle: boolean;
+  est_resolu: boolean;
+  est_ferme: boolean;
+  nb_vues: number;
+  nb_likes: number;
+  created_at: string;
+};
+
+type Reply = {
+  id: string;
+  thread_id: string;
+  user_id: string;
+  contenu: string;
+  est_meilleure_reponse: boolean;
+  nb_likes: number;
+  created_at: string;
+};
+
+type Profile = { id: string; prenom: string | null; nom: string | null };
+
+const CATEGORIES = [
+  { key: "all", label: "Tous", Icon: Sparkles, bg: "#F3E8FF", fg: "#622599" },
+  { key: "scoutisme", label: "Scoutisme", Icon: Shield, bg: "#EEEDFE", fg: "#3C3489" },
+  { key: "droits", label: "Droits de l'enfant", Icon: Scale, bg: "#E6F1FB", fg: "#0C447C" },
+  { key: "environnement", label: "Environnement", Icon: Trees, bg: "#EAF3DE", fg: "#27500A" },
+  { key: "sante", label: "Santé", Icon: HeartPulse, bg: "#E1F5EE", fg: "#085041" },
+  { key: "general", label: "Général", Icon: MessageSquare, bg: "#FAEEDA", fg: "#633806" },
+] as const;
+
+function catMeta(key: string) {
+  return CATEGORIES.find((c) => c.key === key) ?? CATEGORIES[0];
+}
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  const now = Date.now();
+  const diff = (now - d.getTime()) / 1000;
+  if (diff < 60) return "à l'instant";
+  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
+  if (diff < 86400 * 7) return `il y a ${Math.floor(diff / 86400)} j`;
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function ForumPage() {
+  const { user, isAdmin } = useAuth();
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [likedThreadIds, setLikedThreadIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [activeCat, setActiveCat] = useState<string>("all");
+  const [openCreate, setOpenCreate] = useState(false);
+  const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+
+  const loadThreads = async () => {
+    setLoading(true);
+    const { data, error } = await db
+      .from("forum_threads")
+      .select("*")
+      .order("est_epingle", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast.error("Erreur de chargement");
+      setLoading(false);
+      return;
+    }
+    const list = (data ?? []) as Thread[];
+    setThreads(list);
+    const ids = Array.from(new Set(list.map((t) => t.user_id)));
+    if (ids.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, prenom, nom")
+        .in("id", ids);
+      const map: Record<string, Profile> = {};
+      (profs ?? []).forEach((p) => (map[p.id] = p as Profile));
+      setProfiles(map);
+    }
+    if (user) {
+      const { data: likes } = await db
+        .from("forum_likes")
+        .select("thread_id")
+        .eq("user_id", user.id)
+        .not("thread_id", "is", null);
+      setLikedThreadIds(new Set(((likes ?? []) as { thread_id: string }[]).map((l) => l.thread_id)));
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void loadThreads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return threads.filter((t) => {
+      if (activeCat !== "all" && t.categorie !== activeCat) return false;
+      if (q && !t.titre.toLowerCase().includes(q) && !t.contenu.toLowerCase().includes(q))
+        return false;
+      return true;
+    });
+  }, [threads, activeCat, search]);
+
+  const toggleThreadLike = async (thread: Thread) => {
+    if (!user) return;
+    const liked = likedThreadIds.has(thread.id);
+    if (liked) {
+      await db.from("forum_likes").delete().eq("user_id", user.id).eq("thread_id", thread.id);
+      setLikedThreadIds((s) => {
+        const n = new Set(s);
+        n.delete(thread.id);
+        return n;
+      });
+      await db
+        .from("forum_threads")
+        .update({ nb_likes: Math.max(0, thread.nb_likes - 1) })
+        .eq("id", thread.id);
+      setThreads((arr) =>
+        arr.map((t) => (t.id === thread.id ? { ...t, nb_likes: Math.max(0, t.nb_likes - 1) } : t)),
+      );
+    } else {
+      await db.from("forum_likes").insert({ user_id: user.id, thread_id: thread.id });
+      setLikedThreadIds((s) => new Set(s).add(thread.id));
+      await db
+        .from("forum_threads")
+        .update({ nb_likes: thread.nb_likes + 1 })
+        .eq("id", thread.id);
+      setThreads((arr) =>
+        arr.map((t) => (t.id === thread.id ? { ...t, nb_likes: t.nb_likes + 1 } : t)),
+      );
+    }
+  };
+
+  const openThread = async (t: Thread) => {
+    setOpenThreadId(t.id);
+    await db.from("forum_threads").update({ nb_vues: t.nb_vues + 1 }).eq("id", t.id);
+    setThreads((arr) => arr.map((x) => (x.id === t.id ? { ...x, nb_vues: x.nb_vues + 1 } : x)));
+  };
+
+  const activeThread = threads.find((t) => t.id === openThreadId) ?? null;
+
+  return (
+    <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      {!activeThread && (
+        <>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground sm:text-4xl">
+                Forum Scout Communautaire
+              </h1>
+              <p className="mt-2 max-w-2xl text-base text-muted-foreground">
+                Posez vos questions, partagez vos expériences et échangez avec la communauté EEDS.
+              </p>
+            </div>
+            <button
+              onClick={() => setOpenCreate(true)}
+              className="inline-flex h-11 items-center gap-2 rounded-[10px] bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+            >
+              <Plus className="h-4 w-4" /> Nouvelle discussion
+            </button>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher un sujet..."
+                className="h-11 w-full rounded-[10px] border border-border bg-background pl-10 pr-4 text-sm outline-none focus:border-primary"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {CATEGORIES.map((c) => {
+              const active = activeCat === c.key;
+              return (
+                <button
+                  key={c.key}
+                  onClick={() => setActiveCat(c.key)}
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
+                    active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <c.Icon className="h-4 w-4" /> {c.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-8 space-y-3">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+              ))
+            ) : filtered.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
+                <MessageSquare className="mx-auto h-10 w-10 text-muted-foreground" />
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Aucune discussion pour l'instant. Sois le premier à lancer le sujet !
+                </p>
+              </div>
+            ) : (
+              filtered.map((t) => {
+                const meta = catMeta(t.categorie);
+                const author = profiles[t.user_id];
+                const liked = likedThreadIds.has(t.id);
+                return (
+                  <article
+                    key={t.id}
+                    className="group cursor-pointer rounded-2xl border border-border bg-card p-5 transition-all hover:border-primary/40 hover:shadow-md"
+                    onClick={() => openThread(t)}
+                  >
+                    <div className="flex items-start gap-4">
+                      <span
+                        className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl"
+                        style={{ background: meta.bg, color: meta.fg }}
+                      >
+                        <meta.Icon className="h-6 w-6" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {t.est_epingle && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary">
+                              <Pin className="h-3 w-3" /> Épinglé
+                            </span>
+                          )}
+                          {t.est_resolu && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                              <CheckCircle2 className="h-3 w-3" /> Résolu
+                            </span>
+                          )}
+                          {t.est_ferme && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                              <Lock className="h-3 w-3" /> Fermé
+                            </span>
+                          )}
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                            style={{ background: meta.bg, color: meta.fg }}
+                          >
+                            {meta.label}
+                          </span>
+                        </div>
+                        <h3 className="mt-2 text-lg font-semibold text-foreground group-hover:text-primary">
+                          {t.titre}
+                        </h3>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                          {t.contenu}
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                          <span>
+                            par{" "}
+                            <span className="font-medium text-foreground">
+                              {author
+                                ? `${author.prenom ?? ""} ${author.nom ?? ""}`.trim() || "Membre"
+                                : "Membre"}
+                            </span>
+                          </span>
+                          <span>{formatDate(t.created_at)}</span>
+                          <span className="inline-flex items-center gap-1">
+                            <Eye className="h-3.5 w-3.5" /> {t.nb_vues}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void toggleThreadLike(t);
+                            }}
+                            className={`inline-flex items-center gap-1 transition-colors ${
+                              liked ? "text-rose-600" : "hover:text-rose-600"
+                            }`}
+                          >
+                            <Heart className={`h-3.5 w-3.5 ${liked ? "fill-current" : ""}`} />{" "}
+                            {t.nb_likes}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </div>
+        </>
+      )}
+
+      {activeThread && (
+        <ThreadDetail
+          thread={activeThread}
+          authorProfile={profiles[activeThread.user_id]}
+          isAdmin={isAdmin}
+          currentUserId={user?.id ?? null}
+          liked={likedThreadIds.has(activeThread.id)}
+          onLikeThread={() => toggleThreadLike(activeThread)}
+          onBack={() => setOpenThreadId(null)}
+          onThreadUpdate={(patch) => {
+            setThreads((arr) =>
+              arr.map((t) => (t.id === activeThread.id ? { ...t, ...patch } : t)),
+            );
+          }}
+          onThreadDelete={() => {
+            setThreads((arr) => arr.filter((t) => t.id !== activeThread.id));
+            setOpenThreadId(null);
+          }}
+        />
+      )}
+
+      {openCreate && (
+        <CreateThreadModal
+          onClose={() => setOpenCreate(false)}
+          onCreated={() => {
+            setOpenCreate(false);
+            void loadThreads();
+          }}
+        />
+      )}
+    </main>
+  );
+}
+
+function CreateThreadModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const { user } = useAuth();
+  const [titre, setTitre] = useState("");
+  const [contenu, setContenu] = useState("");
+  const [categorie, setCategorie] = useState<string>("general");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (titre.trim().length < 5) {
+      toast.error("Titre trop court");
+      return;
+    }
+    if (contenu.trim().length < 10) {
+      toast.error("Message trop court");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await db.from("forum_threads").insert({
+      titre: titre.trim(),
+      contenu: contenu.trim(),
+      categorie,
+      user_id: user.id,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error("Échec de la publication");
+      return;
+    }
+    toast.success("Discussion publiée !");
+    onCreated();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <form
+        onSubmit={submit}
+        className="w-full max-w-2xl rounded-2xl bg-background p-6 shadow-xl"
+      >
+        <h2 className="text-xl font-bold text-foreground">Nouvelle discussion</h2>
+        <div className="mt-5 space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Catégorie</label>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIES.filter((c) => c.key !== "all").map((c) => (
+                <button
+                  type="button"
+                  key={c.key}
+                  onClick={() => setCategorie(c.key)}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                    categorie === c.key
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <c.Icon className="h-3.5 w-3.5" /> {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Titre</label>
+            <input
+              value={titre}
+              onChange={(e) => setTitre(e.target.value)}
+              maxLength={200}
+              className="h-11 w-full rounded-[10px] border border-border bg-background px-3 text-sm outline-none focus:border-primary"
+              placeholder="Question ou sujet de discussion..."
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Message</label>
+            <textarea
+              value={contenu}
+              onChange={(e) => setContenu(e.target.value)}
+              rows={6}
+              className="w-full rounded-[10px] border border-border bg-background p-3 text-sm outline-none focus:border-primary"
+              placeholder="Décris ton sujet en détail..."
+            />
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 items-center rounded-[10px] border border-border px-4 text-sm font-semibold"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Publier
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ThreadDetail({
+  thread,
+  authorProfile,
+  isAdmin,
+  currentUserId,
+  liked,
+  onLikeThread,
+  onBack,
+  onThreadUpdate,
+  onThreadDelete,
+}: {
+  thread: Thread;
+  authorProfile?: Profile;
+  isAdmin: boolean;
+  currentUserId: string | null;
+  liked: boolean;
+  onLikeThread: () => void;
+  onBack: () => void;
+  onThreadUpdate: (patch: Partial<Thread>) => void;
+  onThreadDelete: () => void;
+}) {
+  const [replies, setReplies] = useState<Reply[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [likedReplyIds, setLikedReplyIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [content, setContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ thread_id?: string; reply_id?: string } | null>(
+    null,
+  );
+  const meta = catMeta(thread.categorie);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await db
+      .from("forum_replies")
+      .select("*")
+      .eq("thread_id", thread.id)
+      .order("est_meilleure_reponse", { ascending: false })
+      .order("created_at", { ascending: true });
+    const list = (data ?? []) as Reply[];
+    setReplies(list);
+    const ids = Array.from(new Set([thread.user_id, ...list.map((r) => r.user_id)]));
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, prenom, nom")
+      .in("id", ids);
+    const map: Record<string, Profile> = {};
+    (profs ?? []).forEach((p) => (map[p.id] = p as Profile));
+    setProfiles(map);
+    if (currentUserId && list.length) {
+      const { data: likes } = await db
+        .from("forum_likes")
+        .select("reply_id")
+        .eq("user_id", currentUserId)
+        .in(
+          "reply_id",
+          list.map((r) => r.id),
+        );
+      setLikedReplyIds(
+        new Set(((likes ?? []) as { reply_id: string }[]).map((l) => l.reply_id)),
+      );
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thread.id]);
+
+  const submitReply = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!currentUserId) return;
+    if (content.trim().length < 2) return;
+    if (thread.est_ferme) {
+      toast.error("Discussion fermée");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await db.from("forum_replies").insert({
+      thread_id: thread.id,
+      user_id: currentUserId,
+      contenu: content.trim(),
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error("Échec de l'envoi");
+      return;
+    }
+    setContent("");
+    void load();
+  };
+
+  const toggleReplyLike = async (r: Reply) => {
+    if (!currentUserId) return;
+    const isLiked = likedReplyIds.has(r.id);
+    if (isLiked) {
+      await db.from("forum_likes").delete().eq("user_id", currentUserId).eq("reply_id", r.id);
+      setLikedReplyIds((s) => {
+        const n = new Set(s);
+        n.delete(r.id);
+        return n;
+      });
+      await db
+        .from("forum_replies")
+        .update({ nb_likes: Math.max(0, r.nb_likes - 1) })
+        .eq("id", r.id);
+      setReplies((arr) =>
+        arr.map((x) => (x.id === r.id ? { ...x, nb_likes: Math.max(0, x.nb_likes - 1) } : x)),
+      );
+    } else {
+      await db.from("forum_likes").insert({ user_id: currentUserId, reply_id: r.id });
+      setLikedReplyIds((s) => new Set(s).add(r.id));
+      await db.from("forum_replies").update({ nb_likes: r.nb_likes + 1 }).eq("id", r.id);
+      setReplies((arr) =>
+        arr.map((x) => (x.id === r.id ? { ...x, nb_likes: x.nb_likes + 1 } : x)),
+      );
+    }
+  };
+
+  const markBest = async (r: Reply) => {
+    await db
+      .from("forum_replies")
+      .update({ est_meilleure_reponse: false })
+      .eq("thread_id", thread.id);
+    await db.from("forum_replies").update({ est_meilleure_reponse: true }).eq("id", r.id);
+    await db.from("forum_threads").update({ est_resolu: true }).eq("id", thread.id);
+    onThreadUpdate({ est_resolu: true });
+    void load();
+    toast.success("Meilleure réponse choisie");
+  };
+
+  const toggleThreadFlag = async (field: "est_epingle" | "est_ferme" | "est_resolu") => {
+    const next = !thread[field];
+    await db.from("forum_threads").update({ [field]: next }).eq("id", thread.id);
+    onThreadUpdate({ [field]: next } as Partial<Thread>);
+  };
+
+  const deleteThread = async () => {
+    if (!confirm("Supprimer cette discussion ?")) return;
+    await db.from("forum_threads").delete().eq("id", thread.id);
+    toast.success("Discussion supprimée");
+    onThreadDelete();
+  };
+
+  const deleteReply = async (r: Reply) => {
+    if (!confirm("Supprimer cette réponse ?")) return;
+    await db.from("forum_replies").delete().eq("id", r.id);
+    setReplies((arr) => arr.filter((x) => x.id !== r.id));
+  };
+
+  const author = authorProfile ?? profiles[thread.user_id];
+  const canEditThread = isAdmin || currentUserId === thread.user_id;
+
+  return (
+    <div>
+      <button
+        onClick={onBack}
+        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary"
+      >
+        <ArrowLeft className="h-4 w-4" /> Retour aux discussions
+      </button>
+
+      <article className="mt-4 rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-start gap-4">
+          <span
+            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl"
+            style={{ background: meta.bg, color: meta.fg }}
+          >
+            <meta.Icon className="h-6 w-6" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {thread.est_epingle && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  <Pin className="h-3 w-3" /> Épinglé
+                </span>
+              )}
+              {thread.est_resolu && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                  <CheckCircle2 className="h-3 w-3" /> Résolu
+                </span>
+              )}
+              {thread.est_ferme && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                  <Lock className="h-3 w-3" /> Fermé
+                </span>
+              )}
+              <span
+                className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                style={{ background: meta.bg, color: meta.fg }}
+              >
+                {meta.label}
+              </span>
+            </div>
+            <h1 className="mt-2 text-2xl font-bold text-foreground">{thread.titre}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <span>
+                par{" "}
+                <span className="font-medium text-foreground">
+                  {author ? `${author.prenom ?? ""} ${author.nom ?? ""}`.trim() || "Membre" : "Membre"}
+                </span>
+              </span>
+              <span>{formatDate(thread.created_at)}</span>
+              <span className="inline-flex items-center gap-1">
+                <Eye className="h-3.5 w-3.5" /> {thread.nb_vues}
+              </span>
+            </div>
+            <p className="mt-4 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
+              {thread.contenu}
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <button
+                onClick={onLikeThread}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  liked
+                    ? "border-rose-200 bg-rose-50 text-rose-600"
+                    : "border-border text-muted-foreground hover:border-rose-300 hover:text-rose-600"
+                }`}
+              >
+                <Heart className={`h-3.5 w-3.5 ${liked ? "fill-current" : ""}`} /> {thread.nb_likes}
+              </button>
+              <button
+                onClick={() => setReportTarget({ thread_id: thread.id })}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-amber-400 hover:text-amber-600"
+              >
+                <Flag className="h-3.5 w-3.5" /> Signaler
+              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => toggleThreadFlag("est_epingle")}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-primary hover:text-primary"
+                  >
+                    <Pin className="h-3.5 w-3.5" /> {thread.est_epingle ? "Désépingler" : "Épingler"}
+                  </button>
+                  <button
+                    onClick={() => toggleThreadFlag("est_ferme")}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-primary hover:text-primary"
+                  >
+                    <Lock className="h-3.5 w-3.5" /> {thread.est_ferme ? "Rouvrir" : "Fermer"}
+                  </button>
+                </>
+              )}
+              {canEditThread && (
+                <button
+                  onClick={deleteThread}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-destructive hover:text-destructive"
+                >
+                  Supprimer
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-foreground">
+          {replies.length} réponse{replies.length > 1 ? "s" : ""}
+        </h2>
+        <div className="mt-4 space-y-3">
+          {loading ? (
+            Array.from({ length: 2 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            ))
+          ) : (
+            replies.map((r) => {
+              const a = profiles[r.user_id];
+              const isLiked = likedReplyIds.has(r.id);
+              const canEditReply = isAdmin || currentUserId === r.user_id;
+              return (
+                <div
+                  key={r.id}
+                  className={`rounded-xl border p-4 ${
+                    r.est_meilleure_reponse
+                      ? "border-emerald-300 bg-emerald-50/50"
+                      : "border-border bg-card"
+                  }`}
+                >
+                  {r.est_meilleure_reponse && (
+                    <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                      <CheckCircle2 className="h-3 w-3" /> Meilleure réponse
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">
+                      {a ? `${a.prenom ?? ""} ${a.nom ?? ""}`.trim() || "Membre" : "Membre"}
+                    </span>
+                    <span>•</span>
+                    <span>{formatDate(r.created_at)}</span>
+                  </div>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                    {r.contenu}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => toggleReplyLike(r)}
+                      className={`inline-flex items-center gap-1.5 text-xs transition-colors ${
+                        isLiked ? "text-rose-600" : "text-muted-foreground hover:text-rose-600"
+                      }`}
+                    >
+                      <Heart className={`h-3.5 w-3.5 ${isLiked ? "fill-current" : ""}`} />{" "}
+                      {r.nb_likes}
+                    </button>
+                    <button
+                      onClick={() => setReportTarget({ reply_id: r.id })}
+                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-600"
+                    >
+                      <Flag className="h-3.5 w-3.5" /> Signaler
+                    </button>
+                    {currentUserId === thread.user_id && !r.est_meilleure_reponse && (
+                      <button
+                        onClick={() => markBest(r)}
+                        className="inline-flex items-center gap-1.5 text-xs text-emerald-700 hover:underline"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Marquer comme meilleure
+                      </button>
+                    )}
+                    {canEditReply && (
+                      <button
+                        onClick={() => deleteReply(r)}
+                        className="text-xs text-muted-foreground hover:text-destructive"
+                      >
+                        Supprimer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+          {!loading && replies.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Aucune réponse encore. Sois le premier à répondre !
+            </p>
+          )}
+        </div>
+
+        {!thread.est_ferme && currentUserId && (
+          <form onSubmit={submitReply} className="mt-6 rounded-xl border border-border bg-card p-4">
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={3}
+              placeholder="Écris ta réponse..."
+              className="w-full resize-none rounded-[10px] border border-border bg-background p-3 text-sm outline-none focus:border-primary"
+            />
+            <div className="mt-3 flex justify-end">
+              <button
+                type="submit"
+                disabled={submitting || content.trim().length < 2}
+                className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Répondre
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {reportTarget && (
+        <ReportModal
+          target={reportTarget}
+          onClose={() => setReportTarget(null)}
+          userId={currentUserId}
+        />
+      )}
+    </div>
+  );
+}
+
+function ReportModal({
+  target,
+  onClose,
+  userId,
+}: {
+  target: { thread_id?: string; reply_id?: string };
+  onClose: () => void;
+  userId: string | null;
+}) {
+  const [raison, setRaison] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!userId || raison.trim().length < 3) return;
+    setSubmitting(true);
+    const { error } = await db.from("forum_signalements").insert({
+      user_id: userId,
+      thread_id: target.thread_id ?? null,
+      reply_id: target.reply_id ?? null,
+      raison: raison.trim(),
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error("Erreur lors du signalement");
+      return;
+    }
+    toast.success("Signalement envoyé. Merci !");
+    onClose();
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <form onSubmit={submit} className="w-full max-w-md rounded-2xl bg-background p-6 shadow-xl">
+        <h2 className="text-lg font-bold text-foreground">Signaler ce contenu</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Explique brièvement pourquoi ce contenu doit être modéré.
+        </p>
+        <textarea
+          value={raison}
+          onChange={(e) => setRaison(e.target.value)}
+          rows={4}
+          className="mt-4 w-full rounded-[10px] border border-border bg-background p-3 text-sm outline-none focus:border-primary"
+          placeholder="Raison du signalement..."
+        />
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 items-center rounded-[10px] border border-border px-4 text-sm font-semibold"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            disabled={submitting || raison.trim().length < 3}
+            className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Envoyer
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
