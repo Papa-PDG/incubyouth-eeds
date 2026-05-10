@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import ReactMarkdown from "react-markdown";
-import { Send, ThumbsUp, ThumbsDown, Copy, Share2, Menu, RefreshCw, BookOpen, ArrowRight } from "lucide-react";
+import { Send, ThumbsUp, ThumbsDown, Copy, Check, Share2, Menu, RefreshCw, BookOpen, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -273,7 +273,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
         {/* Input */}
         <div className="border-t border-[#E5E7EB] bg-white px-4 py-3">
           <div className="mx-auto max-w-3xl">
-            <div className="flex items-end gap-2 rounded-xl border border-[#E5E7EB] bg-white p-2 focus-within:border-[#622599]">
+            <div className="flex items-end gap-2 rounded-xl border border-[#E5E7EB] bg-white p-2 transition-all duration-200 focus-within:border-[#622599] focus-within:ring-2 focus-within:ring-[#622599]/15">
               <Textarea
                 ref={textareaRef}
                 value={input}
@@ -287,9 +287,13 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
                 onClick={() => send(input)}
                 disabled={!input.trim() || streaming}
                 size="icon"
-                className="h-9 w-9 rounded-lg bg-[#622599] hover:bg-[#4f1d7a] disabled:opacity-40"
+                className="btn-bounce h-9 w-9 rounded-lg bg-[#622599] hover:bg-[#4f1d7a] disabled:opacity-40"
               >
-                <Send className="h-4 w-4" />
+                {streaming ? (
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </div>
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
@@ -346,8 +350,8 @@ const MessageBubble = memo(function MessageBubble({
 
   if (isUser) {
     return (
-      <div className="flex flex-col items-end">
-        <div className="max-w-[75%] rounded-[18px_18px_4px_18px] bg-[#622599] px-4 py-2.5 text-white">
+      <div className="anim-scale-in flex flex-col items-end">
+        <div className="max-w-[75%] rounded-[18px_18px_4px_18px] bg-[#622599] px-4 py-2.5 text-white shadow-sm">
           <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
         </div>
         {time && <span className="mt-1 text-[10px] text-muted-foreground">{time}</span>}
@@ -356,8 +360,8 @@ const MessageBubble = memo(function MessageBubble({
   }
 
   return (
-    <div className="flex items-start gap-2">
-      <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#622599] text-xs font-bold text-white">
+    <div className="anim-fade-up flex items-start gap-2">
+      <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#622599] text-xs font-bold text-white anim-pop">
         IY
       </div>
       <div className="flex max-w-[80%] flex-col">
@@ -389,21 +393,19 @@ const MessageBubble = memo(function MessageBubble({
             {time && <span className="text-[10px]">{time}</span>}
             <button
               onClick={() => onFeedback("positive")}
-              className={`ml-2 rounded p-1 hover:bg-muted ${msg.feedback === "positive" ? "text-[#622599]" : ""}`}
+              className={`ml-2 rounded p-1 transition-transform hover:bg-muted active:scale-90 ${msg.feedback === "positive" ? "text-[#622599] anim-pop" : ""}`}
               aria-label="Utile"
             >
               <ThumbsUp className="h-3 w-3" />
             </button>
             <button
               onClick={() => onFeedback("negative")}
-              className={`rounded p-1 hover:bg-muted ${msg.feedback === "negative" ? "text-destructive" : ""}`}
+              className={`rounded p-1 transition-transform hover:bg-muted active:scale-90 ${msg.feedback === "negative" ? "text-destructive anim-pop" : ""}`}
               aria-label="Pas utile"
             >
               <ThumbsDown className="h-3 w-3" />
             </button>
-            <button onClick={onCopy} className="rounded p-1 hover:bg-muted" aria-label="Copier">
-              <Copy className="h-3 w-3" />
-            </button>
+            <CopyButton onCopy={onCopy} />
           </div>
         )}
         {!isError && msg.content && !streaming && mentionsEedsDoc(msg.content) && (
@@ -457,5 +459,26 @@ function TypingDots() {
         />
       ))}
     </div>
+  );
+}
+
+function CopyButton({ onCopy }: { onCopy: () => void }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        onCopy();
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="rounded p-1 transition-transform hover:bg-muted active:scale-90"
+      aria-label="Copier"
+    >
+      {copied ? (
+        <Check className="h-3 w-3 text-[#16A34A] anim-pop" />
+      ) : (
+        <Copy className="h-3 w-3" />
+      )}
+    </button>
   );
 }
