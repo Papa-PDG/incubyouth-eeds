@@ -415,6 +415,7 @@ export type Database = {
           email: string | null
           groupe_scout: string | null
           id: string
+          last_seen_at: string
           nom: string | null
           prenom: string | null
           region: string | null
@@ -425,6 +426,7 @@ export type Database = {
           email?: string | null
           groupe_scout?: string | null
           id: string
+          last_seen_at?: string
           nom?: string | null
           prenom?: string | null
           region?: string | null
@@ -435,6 +437,7 @@ export type Database = {
           email?: string | null
           groupe_scout?: string | null
           id?: string
+          last_seen_at?: string
           nom?: string | null
           prenom?: string | null
           region?: string | null
@@ -586,6 +589,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_public_profiles: {
+        Args: { _ids: string[] }
+        Returns: {
+          id: string
+          last_seen_at: string
+          nom: string
+          prenom: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -593,6 +605,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      touch_last_seen: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "user"
