@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, MessageSquare, Bot, FileText, ArrowLeft, BookOpen } from "lucide-react";
+import { LayoutDashboard, Users, MessageSquare, Bot, FileText, ArrowLeft, BookOpen, MessagesSquare } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import logoEeds from "@/assets/logo-full.png";
 
@@ -18,6 +18,7 @@ const items: NavItem[] = [
   { to: "/admin/conversations", label: "Conversations", icon: MessageSquare, disabled: true },
   { to: "/admin/config", label: "Config du bot", icon: Bot },
   { to: "/admin/bibliotheque", label: "Bibliothèque", icon: BookOpen },
+  { to: "/admin/forum", label: "Forum", icon: MessagesSquare },
   { to: "/admin/rapports", label: "Rapports", icon: FileText, disabled: true },
 ];
 
