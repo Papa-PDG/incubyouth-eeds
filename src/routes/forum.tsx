@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   MessageSquare,
   Plus,
@@ -14,19 +14,18 @@ import {
   Trophy,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   CATEGORIES,
-  MOCK_THREADS,
-  MOCK_REPLIES,
-  MOCK_USERS,
   UPCOMING_EVENTS,
+  buildAuthor,
   getCategory,
   gradeFor,
   initialsOf,
   relativeTime,
   type CategoryKey,
-  type ForumThread,
+  type ForumAuthor,
 } from "@/data/forumData";
 import {
   Dialog,
@@ -43,6 +42,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+
 export const Route = createFileRoute("/forum")({
   head: () => ({
     meta: [
@@ -58,6 +59,32 @@ export const Route = createFileRoute("/forum")({
 });
 
 const PAGE_SIZE = 10;
+
+interface ThreadRow {
+  id: string;
+  titre: string;
+  contenu: string;
+  categorie: string;
+  user_id: string;
+  est_epingle: boolean;
+  est_resolu: boolean;
+  est_ferme: boolean;
+  nb_likes: number;
+  nb_vues: number;
+  created_at: string;
+}
+
+interface AuthorRow {
+  id: string;
+  prenom: string | null;
+  nom: string | null;
+  region: string | null;
+  post_count: number;
+}
+
+const db = supabase as unknown as {
+  from: (t: string) => ReturnType<typeof supabase.from>;
+};
 
 function Avatar({
   name,
@@ -79,7 +106,7 @@ function Avatar({
   );
 }
 
-function CategoryBadge({ categoryKey }: { categoryKey: CategoryKey }) {
+function CategoryBadge({ categoryKey }: { categoryKey: string }) {
   const c = getCategory(categoryKey);
   return (
     <span
@@ -92,49 +119,151 @@ function CategoryBadge({ categoryKey }: { categoryKey: CategoryKey }) {
 }
 
 function ForumPage() {
-  const { user, profile } = useAuth();
-  const [threads, setThreads] = useState<ForumThread[]>(MOCK_THREADS);
+  const { user } = useAuth();
+  const [threads, setThreads] = useState<ThreadRow[]>([]);
+  const [authors, setAuthors] = useState<Record<string, ForumAuthor>>({});
+  const [replyCount, setReplyCount] = useState<Record<string, number>>({});
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [memberCount, setMemberCount] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<CategoryKey | "all">("all");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [openCreate, setOpenCreate] = useState(false);
-
-  // likes locally
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [bumpId, setBumpId] = useState<string | null>(null);
 
-  const replyCount = useMemo(() => {
-    const m: Record<string, number> = {};
-    MOCK_REPLIES.forEach((r) => {
-      m[r.threadId] = (m[r.threadId] ?? 0) + 1;
+  const loadAuthors = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const { data } = await supabase.rpc("get_forum_authors" as never, { _ids: ids } as never);
+    const map: Record<string, ForumAuthor> = {};
+    ((data ?? []) as AuthorRow[]).forEach((a) => {
+      map[a.id] = buildAuthor(a.id, a.prenom, a.nom, a.region, a.post_count ?? 0);
     });
-    return m;
+    setAuthors((prev) => ({ ...prev, ...map }));
   }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await db
+      .from("forum_threads")
+      .select("*")
+      .order("est_epingle", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast.error("Erreur de chargement du forum");
+      setLoading(false);
+      return;
+    }
+    const list = (data ?? []) as ThreadRow[];
+    setThreads(list);
+
+    if (list.length) {
+      const ids = list.map((t) => t.id);
+      const { data: replies } = await db
+        .from("forum_replies")
+        .select("thread_id")
+        .in("thread_id", ids);
+      const counts: Record<string, number> = {};
+      ((replies ?? []) as { thread_id: string }[]).forEach((r) => {
+        counts[r.thread_id] = (counts[r.thread_id] ?? 0) + 1;
+      });
+      setReplyCount(counts);
+
+      await loadAuthors(Array.from(new Set(list.map((t) => t.user_id))));
+    }
+
+    if (user) {
+      const { data: likes } = await db
+        .from("forum_likes")
+        .select("thread_id")
+        .eq("user_id", user.id)
+        .not("thread_id", "is", null);
+      setLikedIds(
+        new Set(
+          ((likes ?? []) as { thread_id: string }[]).map((l) => l.thread_id),
+        ),
+      );
+    } else {
+      setLikedIds(new Set());
+    }
+
+    const { count } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true });
+    setMemberCount(count ?? 0);
+
+    setLoading(false);
+  }, [loadAuthors, user]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // Realtime updates
+  useEffect(() => {
+    const ch = supabase
+      .channel("forum-list")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "forum_threads" },
+        (payload) => {
+          const t = payload.new as ThreadRow;
+          setThreads((arr) => (arr.some((x) => x.id === t.id) ? arr : [t, ...arr]));
+          void loadAuthors([t.user_id]);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "forum_threads" },
+        (payload) => {
+          const t = payload.new as ThreadRow;
+          setThreads((arr) => arr.map((x) => (x.id === t.id ? { ...x, ...t } : x)));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "forum_threads" },
+        (payload) => {
+          const old = payload.old as { id?: string };
+          if (!old.id) return;
+          setThreads((arr) => arr.filter((x) => x.id !== old.id));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "forum_replies" },
+        (payload) => {
+          const r = payload.new as { thread_id: string };
+          setReplyCount((c) => ({ ...c, [r.thread_id]: (c[r.thread_id] ?? 0) + 1 }));
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(ch);
+    };
+  }, [loadAuthors]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return threads
-      .filter((t) => activeCat === "all" || t.category === activeCat)
+      .filter((t) => activeCat === "all" || t.categorie === activeCat)
       .filter(
         (t) =>
           !q ||
-          t.title.toLowerCase().includes(q) ||
-          t.content.toLowerCase().includes(q),
-      )
-      .sort((a, b) => {
-        if (!!b.pinned !== !!a.pinned) return b.pinned ? 1 : -1;
-        return b.createdAt.localeCompare(a.createdAt);
-      });
+          t.titre.toLowerCase().includes(q) ||
+          t.contenu.toLowerCase().includes(q),
+      );
   }, [threads, activeCat, search]);
 
   const visible = filtered.slice(0, visibleCount);
 
-  const toggleLike = (t: ForumThread) => {
+  const toggleLike = async (t: ThreadRow) => {
     if (!user) {
       toast.info("Connecte-toi pour aimer une discussion");
       return;
     }
     const liked = likedIds.has(t.id);
+    // Optimistic
     setLikedIds((s) => {
       const n = new Set(s);
       if (liked) n.delete(t.id);
@@ -143,63 +272,84 @@ function ForumPage() {
     });
     setThreads((arr) =>
       arr.map((x) =>
-        x.id === t.id ? { ...x, likes: x.likes + (liked ? -1 : 1) } : x,
+        x.id === t.id
+          ? { ...x, nb_likes: Math.max(0, x.nb_likes + (liked ? -1 : 1)) }
+          : x,
       ),
     );
     if (!liked) {
       setBumpId(t.id);
       window.setTimeout(() => setBumpId(null), 350);
     }
+    if (liked) {
+      const { error } = await db
+        .from("forum_likes")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("thread_id", t.id);
+      if (!error) {
+        await db
+          .from("forum_threads")
+          .update({ nb_likes: Math.max(0, t.nb_likes - 1) })
+          .eq("id", t.id);
+      }
+    } else {
+      const { error } = await db
+        .from("forum_likes")
+        .insert({ user_id: user.id, thread_id: t.id });
+      if (!error) {
+        await db
+          .from("forum_threads")
+          .update({ nb_likes: t.nb_likes + 1 })
+          .eq("id", t.id);
+      }
+    }
   };
 
-  const handleCreate = (data: {
+  const handleCreate = async (data: {
     title: string;
     content: string;
     category: CategoryKey;
   }) => {
-    const meta = (user?.user_metadata ?? {}) as { prenom?: string; nom?: string };
-    const name =
-      [profile?.prenom ?? meta.prenom, profile?.nom ?? meta.nom]
-        .filter(Boolean)
-        .join(" ") ||
-      user?.email?.split("@")[0] ||
-      "Scout";
-    const newThread: ForumThread = {
-      id: `local-${Date.now()}`,
-      title: data.title.trim(),
-      content: data.content.trim(),
-      category: data.category,
-      author: {
-        id: user!.id,
-        name,
-        city: profile?.region ?? "Sénégal",
-        postCount: 1,
-        avatarColor: "#622599",
-      },
-      createdAt: new Date().toISOString(),
-      likes: 0,
-    };
-    setThreads((arr) => [newThread, ...arr]);
+    if (!user) return;
+    const { data: inserted, error } = await db
+      .from("forum_threads")
+      .insert({
+        user_id: user.id,
+        titre: data.title.trim(),
+        contenu: data.content.trim(),
+        categorie: data.category,
+      })
+      .select("*")
+      .maybeSingle();
+    if (error || !inserted) {
+      toast.error("Impossible de publier la discussion");
+      return;
+    }
+    setThreads((arr) => [inserted as ThreadRow, ...arr]);
+    void loadAuthors([user.id]);
     setOpenCreate(false);
     toast.success("Discussion publiée ! 🎉");
   };
 
-  // Stats
   const stats = useMemo(() => {
+    const totalReplies = Object.values(replyCount).reduce((a, b) => a + b, 0);
     return {
-      members: 524,
-      threads: 1247,
-      replies: 3891,
+      members: memberCount,
+      threads: threads.length,
+      replies: totalReplies,
     };
-  }, []);
+  }, [memberCount, threads.length, replyCount]);
 
-  const topContributors = [...MOCK_USERS]
-    .sort((a, b) => b.postCount - a.postCount)
-    .slice(0, 5);
+  const topContributors = useMemo(() => {
+    return Object.values(authors)
+      .filter((a) => a.postCount > 0)
+      .sort((a, b) => b.postCount - a.postCount)
+      .slice(0, 5);
+  }, [authors]);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* HEADER */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-3xl font-bold text-foreground sm:text-4xl">
@@ -214,7 +364,7 @@ function ForumPage() {
           <button
             onClick={() => setOpenCreate(true)}
             aria-label="Créer une nouvelle discussion"
-            className="inline-flex h-11 items-center gap-2 rounded-[10px] bg-primary px-5 text-sm font-semibold text-primary-foreground transition-transform hover:scale-[1.02] hover:bg-primary/90"
+            className="inline-flex h-11 items-center gap-2 rounded-[10px] px-5 text-sm font-semibold text-white transition-transform hover:scale-[1.02] hover:opacity-90"
             style={{ background: "#622599" }}
           >
             <Plus className="h-4 w-4" /> Nouvelle discussion
@@ -223,7 +373,7 @@ function ForumPage() {
           <Link
             to="/login"
             aria-label="Se connecter pour publier"
-            className="inline-flex h-11 items-center gap-2 rounded-[10px] border-2 border-primary px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+            className="inline-flex h-11 items-center gap-2 rounded-[10px] border-2 px-5 text-sm font-semibold transition-colors hover:text-white"
             style={{ borderColor: "#622599", color: "#622599" }}
           >
             <Plus className="h-4 w-4" /> Connectez-vous pour poster
@@ -231,7 +381,6 @@ function ForumPage() {
         )}
       </header>
 
-      {/* SEARCH */}
       <div className="relative mt-6">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -246,7 +395,6 @@ function ForumPage() {
         />
       </div>
 
-      {/* CATEGORY PILLS */}
       <div className="-mx-4 mt-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <div className="flex gap-2 pb-2 sm:flex-wrap">
           <CategoryPill
@@ -276,9 +424,16 @@ function ForumPage() {
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr,300px]">
-        {/* THREAD LIST */}
         <section aria-label="Discussions">
-          {visible.length === 0 ? (
+          {loading ? (
+            <ul className="space-y-3">
+              {[0, 1, 2, 3].map((i) => (
+                <li key={i}>
+                  <Skeleton className="h-32 w-full rounded-xl" />
+                </li>
+              ))}
+            </ul>
+          ) : visible.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center">
               <MessageSquare className="mx-auto h-10 w-10 text-muted-foreground" />
               <p className="mt-3 text-sm text-muted-foreground">
@@ -289,40 +444,36 @@ function ForumPage() {
             <ul className="space-y-3">
               {visible.map((t) => {
                 const replies = replyCount[t.id] ?? 0;
-                const trending = t.likes >= 10 || replies >= 5;
+                const trending = t.nb_likes >= 10 || replies >= 5;
                 const liked = likedIds.has(t.id);
-                const grade = gradeFor(t.author.postCount);
+                const author = authors[t.user_id] ?? buildAuthor(t.user_id, null, null, null, 0);
+                const grade = gradeFor(author.postCount);
                 return (
                   <li key={t.id}>
-                    <article
-                      className="group rounded-xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md sm:p-5"
-                      style={{ borderColor: undefined }}
-                    >
+                    <article className="group rounded-xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md sm:p-5">
                       <Link
                         to="/forum/$id"
                         params={{ id: t.id }}
-                        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
+                        className="block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                       >
                         <div className="flex items-start gap-3">
-                          <Avatar name={t.author.name} color={t.author.avatarColor} />
+                          <Avatar name={author.name} color={author.avatarColor} />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                              <span className="font-semibold text-foreground">
-                                {t.author.name}
-                              </span>
+                              <span className="font-semibold text-foreground">{author.name}</span>
                               <span aria-hidden>·</span>
                               <span title={grade.label}>
                                 {grade.emoji} {grade.label}
                               </span>
                               <span aria-hidden>·</span>
                               <span className="inline-flex items-center gap-1">
-                                <MapPin className="h-3 w-3" /> {t.author.city}
+                                <MapPin className="h-3 w-3" /> {author.city}
                               </span>
                             </div>
 
                             <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <CategoryBadge categoryKey={t.category} />
-                              {t.pinned && (
+                              <CategoryBadge categoryKey={t.categorie} />
+                              {t.est_epingle && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                                   <Pin className="h-3 w-3" /> Épinglé
                                 </span>
@@ -332,13 +483,18 @@ function ForumPage() {
                                   <Flame className="h-3 w-3" /> Tendance
                                 </span>
                               )}
+                              {t.est_resolu && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                                  <CheckCircle2 className="h-3 w-3" /> Résolu
+                                </span>
+                              )}
                             </div>
 
                             <h2 className="mt-2 text-[15px] font-bold leading-snug text-foreground sm:text-base">
-                              {t.title}
+                              {t.titre}
                             </h2>
                             <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                              {t.content}
+                              {t.contenu}
                             </p>
                           </div>
                         </div>
@@ -358,12 +514,12 @@ function ForumPage() {
                               liked ? "fill-current" : ""
                             } ${bumpId === t.id ? "scale-150" : ""}`}
                           />
-                          {t.likes}
+                          {t.nb_likes}
                         </button>
                         <span className="inline-flex items-center gap-1">
                           <MessageSquare className="h-4 w-4" /> {replies}
                         </span>
-                        <span className="ml-auto">{relativeTime(t.createdAt)}</span>
+                        <span className="ml-auto">{relativeTime(t.created_at)}</span>
                       </div>
                     </article>
                   </li>
@@ -372,7 +528,7 @@ function ForumPage() {
             </ul>
           )}
 
-          {visibleCount < filtered.length && (
+          {!loading && visibleCount < filtered.length && (
             <div className="mt-6 flex justify-center">
               <button
                 onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
@@ -384,27 +540,24 @@ function ForumPage() {
           )}
         </section>
 
-        {/* SIDEBAR */}
         <aside className="hidden space-y-6 lg:block" aria-label="Statistiques et événements">
           <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="mb-3 text-sm font-bold text-foreground">
-              Statistiques communautaires
-            </h3>
+            <h3 className="mb-3 text-sm font-bold text-foreground">Statistiques communautaires</h3>
             <ul className="space-y-2 text-sm">
               <li className="flex items-center gap-2 text-muted-foreground">
-                <Users className="h-4 w-4 text-primary" style={{ color: "#622599" }} />
+                <Users className="h-4 w-4" style={{ color: "#622599" }} />
                 <span>
-                  <strong className="text-foreground">{stats.members}</strong> membres actifs
+                  <strong className="text-foreground">{stats.members}</strong> membres
                 </span>
               </li>
               <li className="flex items-center gap-2 text-muted-foreground">
-                <MessageSquare className="h-4 w-4 text-primary" style={{ color: "#622599" }} />
+                <MessageSquare className="h-4 w-4" style={{ color: "#622599" }} />
                 <span>
                   <strong className="text-foreground">{stats.threads}</strong> discussions
                 </span>
               </li>
               <li className="flex items-center gap-2 text-muted-foreground">
-                <CheckCircle2 className="h-4 w-4 text-primary" style={{ color: "#622599" }} />
+                <CheckCircle2 className="h-4 w-4" style={{ color: "#622599" }} />
                 <span>
                   <strong className="text-foreground">{stats.replies}</strong> réponses
                 </span>
@@ -412,32 +565,32 @@ function ForumPage() {
             </ul>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
-              <Trophy className="h-4 w-4" style={{ color: "#622599" }} /> Top contributeurs
-            </h3>
-            <ul className="space-y-3">
-              {topContributors.map((u, i) => (
-                <li key={u.id} className="flex items-center gap-3">
-                  <span
-                    className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                    style={{ background: "#622599" }}
-                  >
-                    {i + 1}
-                  </span>
-                  <Avatar name={u.name} color={u.avatarColor} size={32} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-foreground">
-                      {u.name}
+          {topContributors.length > 0 && (
+            <div className="rounded-xl border border-border bg-card p-5">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+                <Trophy className="h-4 w-4" style={{ color: "#622599" }} /> Top contributeurs
+              </h3>
+              <ul className="space-y-3">
+                {topContributors.map((u, i) => (
+                  <li key={u.id} className="flex items-center gap-3">
+                    <span
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                      style={{ background: "#622599" }}
+                    >
+                      {i + 1}
+                    </span>
+                    <Avatar name={u.name} color={u.avatarColor} size={32} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium text-foreground">{u.name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {gradeFor(u.postCount).emoji} {u.postCount} discussion{u.postCount > 1 ? "s" : ""}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {gradeFor(u.postCount).emoji} {u.postCount} contributions
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="rounded-xl border border-border bg-card p-5">
             <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
@@ -507,18 +660,20 @@ function CreateThreadDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSubmit: (data: { title: string; content: string; category: CategoryKey }) => void;
+  onSubmit: (data: { title: string; content: string; category: CategoryKey }) => Promise<void>;
 }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState<CategoryKey>("scoutisme");
   const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
+  const [submitting, setSubmitting] = useState(false);
 
   const reset = () => {
     setTitle("");
     setContent("");
     setCategory("scoutisme");
     setErrors({});
+    setSubmitting(false);
   };
 
   const handle = (v: boolean) => {
@@ -526,7 +681,7 @@ function CreateThreadDialog({
     onOpenChange(v);
   };
 
-  const submit = () => {
+  const submit = async () => {
     const errs: typeof errors = {};
     const t = title.trim();
     const c = content.trim();
@@ -537,8 +692,13 @@ function CreateThreadDialog({
     else if (c.length > 2000) errs.content = "Maximum 2000 caractères";
     setErrors(errs);
     if (Object.keys(errs).length) return;
-    onSubmit({ title: t, content: c, category });
-    reset();
+    setSubmitting(true);
+    try {
+      await onSubmit({ title: t, content: c, category });
+      reset();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -617,10 +777,11 @@ function CreateThreadDialog({
           <button
             type="button"
             onClick={submit}
-            className="inline-flex h-10 items-center justify-center rounded-[10px] px-5 text-sm font-semibold text-white transition-colors hover:opacity-90"
+            disabled={submitting}
+            className="inline-flex h-10 items-center justify-center rounded-[10px] px-5 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
             style={{ background: "#622599" }}
           >
-            Publier
+            {submitting ? "Publication..." : "Publier"}
           </button>
         </DialogFooter>
       </DialogContent>

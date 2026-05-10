@@ -248,6 +248,27 @@ export type Database = {
           },
         ]
       }
+      forum_saves: {
+        Row: {
+          created_at: string
+          id: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       forum_signalements: {
         Row: {
           created_at: string
@@ -550,6 +571,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_forum_authors: {
+        Args: { _ids: string[] }
+        Returns: {
+          id: string
+          nom: string
+          post_count: number
+          prenom: string
+          region: string
+        }[]
+      }
       get_public_profiles: {
         Args: { _ids: string[] }
         Returns: {
