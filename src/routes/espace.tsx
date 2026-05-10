@@ -99,12 +99,6 @@ function EspacePage() {
           .order("updated_at", { ascending: false })
           .limit(50),
       ]);
-      const { data: campsData } = await supabase
-        .from("camps")
-        .select("id, nom_camp, duree, theme, effectif, age, region, plan_json, created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      setCamps(((campsData ?? []) as unknown) as CampRow[]);
       if (p) {
         setProfile(p);
         setPrenom(p.prenom ?? "");
