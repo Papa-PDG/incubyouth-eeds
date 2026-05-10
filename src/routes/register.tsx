@@ -84,7 +84,7 @@ function RegisterPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/chat`,
+          emailRedirectTo: `${window.location.origin}/login`,
           data: { prenom, nom, groupe_scout: groupe || null, region: region || null },
         },
       });
@@ -99,9 +99,11 @@ function RegisterPage() {
         }
         return;
       }
+      // Déconnecte la session auto créée par signUp pour forcer la connexion manuelle
+      await supabase.auth.signOut();
       setSuccess(true);
-      toast.success("Compte créé ! Vérifie ta boîte mail.");
-      setTimeout(() => navigate({ to: "/login" }), 5000);
+      toast.success("Compte créé ! Connecte-toi pour continuer.");
+      setTimeout(() => navigate({ to: "/login" }), 1500);
     } finally {
       setLoading(false);
     }
@@ -123,7 +125,7 @@ function RegisterPage() {
             Vérifie ta boîte mail pour confirmer ton compte avant de te connecter.
           </p>
           <p className="mt-3 text-xs text-slate-400">
-            Redirection vers la connexion dans 5 secondes…
+            Redirection vers la connexion…
           </p>
           <Link
             to="/login"
