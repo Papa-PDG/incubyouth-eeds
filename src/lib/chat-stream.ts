@@ -50,7 +50,9 @@ export async function streamChat({
     if (signal?.aborted) return;
 
     if (data?.error) {
-      onError(data.error);
+      onError(data.code === "RATE_LIMIT" || data.code === "QUOTA"
+        ? "Le service IA est temporairement saturé. Réessaie dans quelques secondes."
+        : data.error);
       return;
     }
     if (invokeError) {
