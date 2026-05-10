@@ -638,6 +638,7 @@ function ForumPage() {
         />
       )}
     </main>
+    </OnlineContext.Provider>
   );
 }
 
