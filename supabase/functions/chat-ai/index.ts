@@ -81,7 +81,7 @@ serve(async (req) => {
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'google/gemini-3-flash-preview',
           messages: [
             { role: 'system', content: systemPrompt },
             ...cleanHistory,
@@ -105,7 +105,7 @@ serve(async (req) => {
       console.error('Erreur Lovable AI:', response.status, text)
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Trop de requêtes, réessaie dans un instant.", code: 'QUOTA' }),
+          JSON.stringify({ error: "Le service IA reçoit trop de demandes. Patiente quelques secondes puis réessaie.", code: 'RATE_LIMIT' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
