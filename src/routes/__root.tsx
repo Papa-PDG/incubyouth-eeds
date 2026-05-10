@@ -99,12 +99,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Incub'Youth — La plateforme intelligente des scouts sénégalais" },
       { name: "description", content: "Incub'Youth, le chatbot éducatif des Éclaireuses et Éclaireurs du Sénégal (EEDS)." },
       { name: "author", content: "EEDS" },
-      { property: "og:title", content: "Incub'Youth" },
-      { property: "og:description", content: "La plateforme intelligente des scouts sénégalais." },
+      { property: "og:title", content: "Incub'Youth — La plateforme intelligente des scouts sénégalais" },
+      { property: "og:description", content: "Incub'Youth, le chatbot éducatif des Éclaireuses et Éclaireurs du Sénégal (EEDS)." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "theme-color", content: "#622599" },
+      { name: "twitter:title", content: "Incub'Youth — La plateforme intelligente des scouts sénégalais" },
+      { name: "twitter:description", content: "Incub'Youth, le chatbot éducatif des Éclaireuses et Éclaireurs du Sénégal (EEDS)." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f0352411-1c4f-4dc0-8a28-58e78c0b6b55/id-preview-ad0d0d9b--055825bd-f87f-4c0c-99e5-f3e90586fb62.lovable.app-1778422981242.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f0352411-1c4f-4dc0-8a28-58e78c0b6b55/id-preview-ad0d0d9b--055825bd-f87f-4c0c-99e5-f3e90586fb62.lovable.app-1778422981242.png" },
     ],
     links: [
       {
