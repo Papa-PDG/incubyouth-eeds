@@ -516,7 +516,7 @@ function ForumPage() {
                           {initialsOf(author)}
                         </span>
                         <span className="absolute -bottom-0.5 -right-0.5">
-                          <PresenceDot online={presenceStatus(author?.last_seen_at).online} />
+                          <PresenceDot online={presenceStatus(author?.last_seen_at, author ? onlineIds.has(author.id) : false).online} />
                         </span>
                       </div>
                       <div className="min-w-0 flex-1">
@@ -565,13 +565,13 @@ function ForumPage() {
                             {author && (
                               <span
                                 className={`ml-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                  presenceStatus(author.last_seen_at).online
+                                  presenceStatus(author.last_seen_at, onlineIds.has(author.id)).online
                                     ? "bg-emerald-50 text-emerald-700"
                                     : "bg-slate-100 text-slate-500"
                                 }`}
                               >
-                                <PresenceDot online={presenceStatus(author.last_seen_at).online} className="!ring-0 !h-1.5 !w-1.5" />
-                                {presenceStatus(author.last_seen_at).label}
+                                <PresenceDot online={presenceStatus(author.last_seen_at, onlineIds.has(author.id)).online} className="!ring-0 !h-1.5 !w-1.5" />
+                                {presenceStatus(author.last_seen_at, onlineIds.has(author.id)).label}
                               </span>
                             )}
                           </span>
