@@ -338,7 +338,7 @@ function EspacePage() {
         </div>
       </section>
 
-      {/* CONVERSATIONS */}
+      {/* MES CAMPS */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-xl font-bold">
