@@ -23,6 +23,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
+import { useCountUp } from "@/hooks/use-animations";
+
+function CountUp({ target }: { target: number }) {
+  const ref = useCountUp(target);
+  return <span ref={ref as never}>0</span>;
+}
 import { exportCampPdf, type CampPlan } from "@/lib/camp-pdf";
 
 export const Route = createFileRoute("/espace")({
