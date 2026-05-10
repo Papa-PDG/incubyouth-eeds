@@ -18,6 +18,37 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY non configurée dans les secrets Supabase')
     }
 
+    // Validation & sanitisation côté serveur (anti-XSS / anti-injection prompt abuse)
+    const MAX_LEN = 2000
+    const MAX_HISTORY = 20
+    const sanitize = (s: unknown): string => {
+      if (typeof s !== 'string') return ''
+      return s
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<\/?(iframe|object|embed|link|meta|style)\b[^>]*>/gi, '')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .trim()
+        .slice(0, MAX_LEN)
+    }
+    const rawHistory: Array<{ role: string; content: string }> = Array.isArray(conversationHistory)
+      ? conversationHistory.slice(-MAX_HISTORY)
+      : []
+    const cleanHistory = rawHistory
+      .map((m) => ({
+        role: m?.role === 'assistant' ? 'assistant' : 'user',
+        content: sanitize(m?.content),
+      }))
+      .filter((m) => m.content.length > 0)
+
+    if (cleanHistory.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Message vide ou invalide.', code: 'INVALID_INPUT' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
     const systemPrompt = `Tu es Incub'Youth, l'assistant intelligent officiel des Éclaireuses et Éclaireurs du Sénégal (EEDS).
 
 Ton rôle est d'aider les scouts sénégalais avec des informations fiables sur :
@@ -35,7 +66,7 @@ Règles importantes :
 - Ne génère jamais de contenu inapproprié pour des mineurs
 - Commence par une courte phrase d'accroche avant de répondre`
 
-    const geminiMessages = (conversationHistory || []).map((msg: { role: string; content: string }) => ({
+    const geminiMessages = cleanHistory.map((msg) => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }))
