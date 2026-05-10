@@ -18,6 +18,7 @@ import { Route as EspaceRouteImport } from './routes/espace'
 import { Route as ConditionsUtilisationRouteImport } from './routes/conditions-utilisation'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as CampRouteImport } from './routes/camp'
+import { Route as CalendrierRouteImport } from './routes/calendrier'
 import { Route as BibliothequeRouteImport } from './routes/bibliotheque'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -73,6 +74,11 @@ const CampRoute = CampRouteImport.update({
   path: '/camp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendrierRoute = CalendrierRouteImport.update({
+  id: '/calendrier',
+  path: '/calendrier',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BibliothequeRoute = BibliothequeRouteImport.update({
   id: '/bibliotheque',
   path: '/bibliotheque',
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/bibliotheque': typeof BibliothequeRoute
+  '/calendrier': typeof CalendrierRoute
   '/camp': typeof CampRoute
   '/chat': typeof ChatRouteWithChildren
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bibliotheque': typeof BibliothequeRoute
+  '/calendrier': typeof CalendrierRoute
   '/camp': typeof CampRoute
   '/chat': typeof ChatRouteWithChildren
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
@@ -163,6 +171,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/bibliotheque': typeof BibliothequeRoute
+  '/calendrier': typeof CalendrierRoute
   '/camp': typeof CampRoute
   '/chat': typeof ChatRouteWithChildren
   '/conditions-utilisation': typeof ConditionsUtilisationRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/bibliotheque'
+    | '/calendrier'
     | '/camp'
     | '/chat'
     | '/conditions-utilisation'
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/bibliotheque'
+    | '/calendrier'
     | '/camp'
     | '/chat'
     | '/conditions-utilisation'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/bibliotheque'
+    | '/calendrier'
     | '/camp'
     | '/chat'
     | '/conditions-utilisation'
@@ -245,6 +257,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   BibliothequeRoute: typeof BibliothequeRoute
+  CalendrierRoute: typeof CalendrierRoute
   CampRoute: typeof CampRoute
   ChatRoute: typeof ChatRouteWithChildren
   ConditionsUtilisationRoute: typeof ConditionsUtilisationRoute
@@ -319,6 +332,13 @@ declare module '@tanstack/react-router' {
       path: '/camp'
       fullPath: '/camp'
       preLoaderRoute: typeof CampRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendrier': {
+      id: '/calendrier'
+      path: '/calendrier'
+      fullPath: '/calendrier'
+      preLoaderRoute: typeof CalendrierRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bibliotheque': {
@@ -419,6 +439,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   BibliothequeRoute: BibliothequeRoute,
+  CalendrierRoute: CalendrierRoute,
   CampRoute: CampRoute,
   ChatRoute: ChatRouteWithChildren,
   ConditionsUtilisationRoute: ConditionsUtilisationRoute,
@@ -432,3 +453,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
