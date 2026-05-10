@@ -76,7 +76,37 @@ type Reply = {
   created_at: string;
 };
 
-type Profile = { id: string; prenom: string | null; nom: string | null };
+type Profile = {
+  id: string;
+  prenom: string | null;
+  nom: string | null;
+  last_seen_at?: string | null;
+};
+
+const ONLINE_WINDOW_MS = 2 * 60 * 1000; // < 2 min => en ligne
+
+function presenceStatus(lastSeen?: string | null): {
+  online: boolean;
+  label: string;
+} {
+  if (!lastSeen) return { online: false, label: "Hors ligne" };
+  const ms = Date.now() - new Date(lastSeen).getTime();
+  if (ms < ONLINE_WINDOW_MS) return { online: true, label: "En ligne" };
+  if (ms < 3600_000) return { online: false, label: `Vu il y a ${Math.floor(ms / 60000)} min` };
+  if (ms < 86400_000) return { online: false, label: `Vu il y a ${Math.floor(ms / 3600_000)} h` };
+  return { online: false, label: `Vu il y a ${Math.floor(ms / 86400_000)} j` };
+}
+
+function PresenceDot({ online, className = "" }: { online: boolean; className?: string }) {
+  return (
+    <span
+      className={`inline-block h-2.5 w-2.5 rounded-full ring-2 ring-card ${
+        online ? "bg-emerald-500" : "bg-slate-300"
+      } ${className}`}
+      aria-hidden
+    />
+  );
+}
 
 const CATEGORIES = [
   { key: "all", label: "Tous", Icon: Sparkles, bg: "#F3E8FF", fg: "#622599" },
@@ -131,6 +161,13 @@ function ForumPage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState<number>(0);
+  const [, forceTick] = useState(0);
+
+  // Re-render every 30s pour rafraîchir les libellés "vu il y a X"
+  useEffect(() => {
+    const id = window.setInterval(() => forceTick((n) => n + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   // mark visit
   useEffect(() => {
@@ -172,12 +209,11 @@ function ForumPage() {
 
     const ids = Array.from(new Set(list.map((t) => t.user_id)));
     if (ids.length) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id, prenom, nom")
-        .in("id", ids);
+      const { data: profs } = await supabase.rpc("get_public_profiles" as never, {
+        _ids: ids,
+      } as never);
       const map: Record<string, Profile> = {};
-      (profs ?? []).forEach((p) => (map[p.id] = p as Profile));
+      ((profs ?? []) as Profile[]).forEach((p) => (map[p.id] = p));
       setProfiles(map);
     }
     if (user) {
