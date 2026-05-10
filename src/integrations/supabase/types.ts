@@ -115,6 +115,170 @@ export type Database = {
           },
         ]
       }
+      forum_likes: {
+        Row: {
+          created_at: string
+          id: string
+          reply_id: string | null
+          thread_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reply_id?: string | null
+          thread_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reply_id?: string | null
+          thread_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forum_likes_reply_id_fkey"
+            columns: ["reply_id"]
+            isOneToOne: false
+            referencedRelation: "forum_replies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forum_likes_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "forum_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forum_replies: {
+        Row: {
+          contenu: string
+          created_at: string
+          est_meilleure_reponse: boolean
+          id: string
+          nb_likes: number
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          contenu: string
+          created_at?: string
+          est_meilleure_reponse?: boolean
+          id?: string
+          nb_likes?: number
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          contenu?: string
+          created_at?: string
+          est_meilleure_reponse?: boolean
+          id?: string
+          nb_likes?: number
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forum_replies_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "forum_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forum_signalements: {
+        Row: {
+          created_at: string
+          id: string
+          raison: string
+          reply_id: string | null
+          thread_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          raison: string
+          reply_id?: string | null
+          thread_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          raison?: string
+          reply_id?: string | null
+          thread_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forum_signalements_reply_id_fkey"
+            columns: ["reply_id"]
+            isOneToOne: false
+            referencedRelation: "forum_replies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forum_signalements_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "forum_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forum_threads: {
+        Row: {
+          categorie: string
+          contenu: string
+          created_at: string
+          est_epingle: boolean
+          est_ferme: boolean
+          est_resolu: boolean
+          id: string
+          nb_likes: number
+          nb_vues: number
+          titre: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          categorie: string
+          contenu: string
+          created_at?: string
+          est_epingle?: boolean
+          est_ferme?: boolean
+          est_resolu?: boolean
+          id?: string
+          nb_likes?: number
+          nb_vues?: number
+          titre: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          categorie?: string
+          contenu?: string
+          created_at?: string
+          est_epingle?: boolean
+          est_ferme?: boolean
+          est_resolu?: boolean
+          id?: string
+          nb_likes?: number
+          nb_vues?: number
+          titre?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
