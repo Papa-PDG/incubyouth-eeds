@@ -40,6 +40,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastUserMsgRef = useRef<string>("");
+  const justCreatedIdRef = useRef<string | null>(null);
 
   // Read pre-filled prompt from camp page (or other entry points)
   useEffect(() => {
@@ -54,9 +55,19 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
 
   // Load conversation
   useEffect(() => {
+    if (!conversationId) {
+      setMessages([]);
+      setTitre("Nouvelle conversation");
+      return;
+    }
+    // Skip reload if we just created this conversation locally
+    // (messages are already in state and a stream may be in progress).
+    if (justCreatedIdRef.current === conversationId) {
+      justCreatedIdRef.current = null;
+      return;
+    }
     setMessages([]);
     setTitre("Nouvelle conversation");
-    if (!conversationId) return;
     (async () => {
       const { data: conv } = await supabase
         .from("conversations")
@@ -119,6 +130,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
       }
       convId = data.id;
       setTitre(data.titre);
+      justCreatedIdRef.current = convId;
       navigate({ to: "/chat/$conversationId", params: { conversationId: convId } });
     }
 
